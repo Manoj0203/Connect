@@ -11,6 +11,11 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		36651931A81444DBA1E72F90 /* Anaheim-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B4026A13D00948ED916A8F0E /* Anaheim-Bold.ttf */; };
+		B4619E77DAB24126825137C3 /* Anaheim-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 33818E4440CC4274913502A1 /* Anaheim-Regular.ttf */; };
+		477789A18DC34EC9B6617EAD /* Anaheim-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7ED33399BBD44FB8B0BF55DA /* Anaheim-SemiBold.ttf */; };
+		3DBDFCEF0B754C389C1158C4 /* Bangers-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9B19B610776D4E4CA2E61307 /* Bangers-Regular.ttf */; };
+		3FDFCE0CA32A46F8B21845B0 /* impact.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9D124E34598D4EC6911706D3 /* impact.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +29,11 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Connect/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Connect/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		B4026A13D00948ED916A8F0E /* Anaheim-Bold.ttf */ = {isa = PBXFileReference; name = "Anaheim-Bold.ttf"; path = "../assets/fonts/Anaheim-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		33818E4440CC4274913502A1 /* Anaheim-Regular.ttf */ = {isa = PBXFileReference; name = "Anaheim-Regular.ttf"; path = "../assets/fonts/Anaheim-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		7ED33399BBD44FB8B0BF55DA /* Anaheim-SemiBold.ttf */ = {isa = PBXFileReference; name = "Anaheim-SemiBold.ttf"; path = "../assets/fonts/Anaheim-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		9B19B610776D4E4CA2E61307 /* Bangers-Regular.ttf */ = {isa = PBXFileReference; name = "Bangers-Regular.ttf"; path = "../assets/fonts/Bangers-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		9D124E34598D4EC6911706D3 /* impact.ttf */ = {isa = PBXFileReference; name = "impact.ttf"; path = "../assets/fonts/impact.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +84,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				F3914BAE001743C2A06DDC81 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -96,6 +107,19 @@
 			);
 			path = Pods;
 			sourceTree = "<group>";
+		};
+		F3914BAE001743C2A06DDC81 /* Resources */ = {
+			isa = "PBXGroup";
+			children = (
+				B4026A13D00948ED916A8F0E /* Anaheim-Bold.ttf */,
+				33818E4440CC4274913502A1 /* Anaheim-Regular.ttf */,
+				7ED33399BBD44FB8B0BF55DA /* Anaheim-SemiBold.ttf */,
+				9B19B610776D4E4CA2E61307 /* Bangers-Regular.ttf */,
+				9D124E34598D4EC6911706D3 /* impact.ttf */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -159,6 +183,11 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				36651931A81444DBA1E72F90 /* Anaheim-Bold.ttf in Resources */,
+				B4619E77DAB24126825137C3 /* Anaheim-Regular.ttf in Resources */,
+				477789A18DC34EC9B6617EAD /* Anaheim-SemiBold.ttf in Resources */,
+				3DBDFCEF0B754C389C1158C4 /* Bangers-Regular.ttf in Resources */,
+				3FDFCE0CA32A46F8B21845B0 /* impact.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
