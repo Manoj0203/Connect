@@ -15,6 +15,7 @@ import AuthScreen from './screens/AuthScreen';
 import TwoFactScreen from './screens/TwoFactScreen';
 import EditScreen from './screens/EditScreen';
 import OtherProfile from './screens/OtherProfile';
+import SetupAuth from './screens/SetupAuth'
 
 import { PaperProvider } from 'react-native-paper';
 
@@ -39,6 +40,7 @@ export default function App() {
           <Stack.Screen name='TwoFact' component={TwoFactScreen} />
           <Stack.Screen name='Edit' component={EditScreen} />
           <Stack.Screen name='OtherProfile' component={OtherProfile} />
+          <Stack.Screen name='SetupAuth' component={SetupAuth} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

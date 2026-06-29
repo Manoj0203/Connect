@@ -127,54 +127,19 @@ const PopUp = ({
 
     return (
         <>
-            <Pressable
-                style={styles.overlay}
-                onPress={onClose}
-            />
+            <Pressable style={styles.overlay} onPress={onClose} />
 
             <Animated.View
-                style={[
-                    styles.popup,
-                    {
-                        backgroundColor: isDark
-                            ? '#3d3d3d'
-                            : '#fff',
+                style={[styles.popup, {
+                    backgroundColor: isDark ? '#3d3d3d' : '#fff',
+                    opacity: animationFade,
+                    transform: [{ scale: animationScale, },],
+                },]} >
 
-                        opacity: animationFade,
-
-                        transform: [
-                            {
-                                scale: animationScale,
-                            },
-                        ],
-                    },
-                ]}
-            >
-
-                <TouchableOpacity
-                    style={styles.option}
-                    activeOpacity={0.7}
-                    onPress={shareImage}
-                >
+                <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={shareImage} >
                     <View style={styles.row}>
-                        <FontAwesome
-                            name="share-square-o"
-                            size={18}
-                            color={isDark ? '#fff' : '#000'}
-                        />
-
-                        <Text
-                            style={[
-                                styles.text,
-                                {
-                                    color: isDark
-                                        ? '#fff'
-                                        : '#000',
-                                },
-                            ]}
-                        >
-                            Share
-                        </Text>
+                        <FontAwesome name="share-square-o" size={18} color={isDark ? '#fff' : '#000'} />
+                        <Text style={[styles.text, { color: isDark ? '#fff' : '#000', },]} >Share</Text>
                     </View>
                 </TouchableOpacity>
 
@@ -185,28 +150,10 @@ const PopUp = ({
                 />
                 {
                     curruser === postUser && (
-                        <TouchableOpacity
-                            style={styles.option}
-                            activeOpacity={0.7}
-                            onPress={() => deletePost()}
-                        >
+                        <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={() => deletePost()} >
                             <View style={styles.row}>
-                                <MaterialIcons
-                                    name="delete"
-                                    size={22}
-                                    color="#FF2F32"
-                                />
-
-                                <Text
-                                    style={[
-                                        styles.text,
-                                        {
-                                            color: '#FF2F32',
-                                        },
-                                    ]}
-                                >
-                                    Delete
-                                </Text>
+                                <MaterialIcons name="delete" size={22} color="#FF2F32" />
+                                <Text style={[styles.text, { color: '#FF2F32', },]} >Delete </Text>
                             </View>
                         </TouchableOpacity>
                     )
@@ -214,32 +161,15 @@ const PopUp = ({
 
                 {
                     curruser !== postUser && (
-                        <TouchableOpacity
-                            style={styles.option}
-                            activeOpacity={0.7}
-                        >
+                        <TouchableOpacity style={styles.option} activeOpacity={0.7} >
                             <View style={styles.row}>
-                                <MaterialIcons
-                                    name="report"
-                                    size={22}
-                                    color="#FF2F32"
-                                />
-
-                                <Text
-                                    style={[
-                                        styles.text,
-                                        {
-                                            color: '#FF2F32',
-                                        },
-                                    ]}
-                                >
-                                    Report
-                                </Text>
+                                <MaterialIcons name="report" size={22} color="#FF2F32" />
+                                <Text style={[styles.text, { color: '#FF2F32', },]} >Report</Text>
                             </View>
                         </TouchableOpacity>
                     )
                 }
-            </Animated.View>
+            </Animated.View >
         </>
     );
 };
@@ -279,6 +209,7 @@ const styles = StyleSheet.create({
     },
 
     text: {
+        fontFamily:'Anaheim-SemiBold',
         fontSize: 15,
         fontWeight: '600',
     },

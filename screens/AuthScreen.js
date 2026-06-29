@@ -93,7 +93,7 @@ const AuthScreen = () => {
     }
 
     return (
-        <SafeAreaView style={{backgroundColor:isDark?'#252525':'#fff', flex:1, justifyContent:'center', alignItems:'center'}}>
+        <SafeAreaView style={{backgroundColor:isDark?'#252525':'#f6f6f6', flex:1, justifyContent:'center', alignItems:'center'}}>
             <View style={{width:'80%', alignItems:'center'}}>
                 <Text style={[TEXT.heading, {fontSize:24, marginBottom:20}]}>Enter OTP</Text>
                 <TextInput

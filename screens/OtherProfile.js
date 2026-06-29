@@ -67,19 +67,23 @@ const OtherProfile = () => {
 
     useEffect(() => {
         const checkfriendfollowstatus = async () => {
-            const friendsrequestcollection = await getDoc(doc(db, 'users', curruser.uid, 'RequestsSent', uid));
-            const friendslist = await getDoc(doc(db, 'users', curruser.uid));
-            const friendsarray = friendslist.data().friendslist;
-            friendsarray.forEach((friendid) => {
-                if (friendid === uid) {
-                    setInFriends(true);
+            try {
+                const friendsrequestcollection = await getDoc(doc(db, 'users', curruser.uid, 'Connect_RequestsSent', uid));
+                const friendslist = await getDoc(doc(db, 'users', curruser.uid));
+                const friendsarray = friendslist.data().friendslist;
+                friendsarray.forEach((friendid) => {
+                    if (friendid === uid) {
+                        setInFriends(true);
+                    }
+                })
+                if (friendsrequestcollection.exists() && friendsrequestcollection.data().status === 'pending') {
+                    setFriendsRequestSent(true);
                 }
-            })
-            if (friendsrequestcollection.exists() && friendsrequestcollection.data().status === 'pending') {
-                setFriendsRequestSent(true);
-            }
-            else {
-                setFriendsRequestSent(false)
+                else {
+                    setFriendsRequestSent(false)
+                }
+            } catch (error) {
+                console.log('asdjkgas')
             }
         }
         checkfriendfollowstatus();
@@ -88,6 +92,7 @@ const OtherProfile = () => {
     const handleRemoveFromFriends = async () => {
         try {
             setInFriends(false);
+            setFriendsRequestSent(false);
 
             batch.update(doc(db, 'users', curruser.uid), {
                 friendslist: arrayRemove(uid),
@@ -113,7 +118,7 @@ const OtherProfile = () => {
             const time = serverTimestamp();
             const fromprofile = (await getDoc(doc(db, 'users', curruser.uid))).data().image;
 
-            await setDoc(doc(db, 'users', curruser.uid, 'RequestsSent', uid), {
+            await setDoc(doc(db, 'users', curruser.uid, 'Connect_RequestsSent', uid), {
                 from: curruser.uid,
                 to: uid,
                 status: 'pending',
@@ -124,7 +129,7 @@ const OtherProfile = () => {
             await updateDoc(doc(db, 'users', curruser.uid), {
                 requests: increment(1),
             })
-            await setDoc(doc(db, 'users', uid, 'RequestsRecieved', curruser.uid), {
+            await setDoc(doc(db, 'users', uid, 'Connect_RequestsRecieved', curruser.uid), {
                 from: curruser.uid,
                 status: 'Pending',
                 fromname,
@@ -142,8 +147,8 @@ const OtherProfile = () => {
         try {
             setFriendsRequestSent(false);
 
-            await deleteDoc(doc(db, 'users', curruser.uid, 'RequestsSent', uid));
-            await deleteDoc(doc(db, 'users', uid, 'RequestsRecieved', curruser.uid));
+            await deleteDoc(doc(db, 'users', curruser.uid, 'Connect_RequestsSent', uid));
+            await deleteDoc(doc(db, 'users', uid, 'Connect_RequestsRecieved', curruser.uid));
             await updateDoc(doc(db, 'users', curruser.uid), {
                 requests: increment(-1),
             })
@@ -194,7 +199,7 @@ const OtherProfile = () => {
     })
 
     return (
-        <SafeAreaView style={{ backgroundColor: isDark ? "#252525" : "#fff", flex: 1, alignItems: 'center' }}>
+        <SafeAreaView style={{ backgroundColor: isDark ? "#252525" : "#f6f6f6", flex: 1, alignItems: 'center' }}>
             <StatusBar barStyle={'dark-content'} />
             <View style={{ flexDirection: 'row', alignSelf: 'flex-start', paddingLeft: '6%', marginBottom: 15 }}>
                 {/* HEADER */}

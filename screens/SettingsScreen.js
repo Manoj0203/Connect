@@ -85,7 +85,7 @@ const SettingsScreen = () => {
 	const styles = StyleSheet.create({
 		container:
 		{
-			backgroundColor: isDark?'#252525':'#fff',
+			backgroundColor: isDark?'#252525':'#f6f6f6',
 			flex:1,
 		},
 		header:
@@ -162,7 +162,7 @@ const SettingsScreen = () => {
 				onBackButtonPress={() => setIsDeleteModalVisible(false)}
 				onBackdropPress={() => setIsDeleteModalVisible(false)}
 				style={{justifyContent:'center',}} >
-					<View style={{backgroundColor:isDark?'#333':'#fff', padding:0, borderRadius:8, alignItems:'center',}}>
+					<View style={{backgroundColor:isDark?'#333':'#fff', padding:10, borderRadius:12, alignItems:'center',}}>
 						<Text style={[TEXT.subheading, {alignSelf:'center', marginBottom:10,}]}>Delete Account</Text>
 
 						<TextInput

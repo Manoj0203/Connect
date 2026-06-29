@@ -25,7 +25,7 @@ const SearchScreen = () => {
 
     const styles = StyleSheet.create({
         container: {
-            backgroundColor: isDark ? '#252525' : '#fff',
+            backgroundColor: isDark ? '#252525' : '#f6f6f6',
             flex: 1,
         },
         inputSearchtxt: {

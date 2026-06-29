@@ -36,7 +36,7 @@ export default function TabManagement() {
 
     }, [isDark]);
 
-    const bgcolor = isDark ? "#252525" : "#fff";
+    const bgcolor = isDark ? "#252525" : "#f6f6f6";
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: bgcolor }}>
             <Tab.Navigator initialRouteName="Home" screenOptions={({ route }) => ({

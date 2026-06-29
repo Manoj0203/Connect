@@ -54,7 +54,7 @@ const SecurityInfoScreen = () => {
         container:
         {
             flex:1,
-            backgroundColor:isDark?'#252525':'#fff',
+            backgroundColor:isDark?'#252525':'#f6f6f6',
         },
 		header:
 		{
@@ -183,13 +183,13 @@ const SecurityInfoScreen = () => {
 							{/* <AntDesign name="right" size={18} color="black" /> */}
 						</TouchableOpacity>
 						<Divider style={{width:'75%', backgroundColor:'#fff', height:.5}} />
-						{/* 2 FACTOR AUTHENTICATION */}
+						{/* Change Password */}
 						<TouchableOpacity onPress={() => setChangePasswordModalVisible(true)} style={{flexDirection:'row', justifyContent:'space-between', width:'95%', alignItems:'center', marginTop:5, marginBottom:8}}>
 							<Text style={[BUTTON.settingbtntxt, {}]}>Change password</Text>
 							{/* <AntDesign name="right" size={18} color="black" /> */}
 						</TouchableOpacity>
 						<Divider style={{width:'75%', backgroundColor:'#fff', height:.5}} />
-						{/* VERIFICATION BADGE */}
+						{/* Change Phone Number */}
 						<TouchableOpacity onPress={() => setChangePhoneNumber(true)} style={{flexDirection:'row', justifyContent:'space-between', width:'95%', alignItems:'center', marginTop:5, marginBottom:8}}>
 							<Text style={[BUTTON.settingbtntxt, {}]}>Change phone number</Text>
 							{/* <AntDesign name="right" size={18} color="black" /> */}

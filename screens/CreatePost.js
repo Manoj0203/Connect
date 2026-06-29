@@ -15,7 +15,7 @@ const CreatePost = () => {
 
 	const { Colour, isDark, TEXT } = useTheme();
 
-	const bgcolor = isDark ? '#252525' : '#fff';
+	const bgcolor = isDark ? '#252525' : '#f6f6f6';
 	const fontcolor = isDark ? '#fff' : '#000';
 	const placeholdercolor = isDark ? '#acacacff' : '#7e7e7eff'
 

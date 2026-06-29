@@ -6,7 +6,7 @@ export const useTheme = () => {
         Colour:
         {
             bg:{
-                backgroundColor:isDark?"#252525":"#fff",
+                backgroundColor:isDark?"#252525":"#f6f6f6",
                 flex:1,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -49,11 +49,11 @@ export const useTheme = () => {
             },
             neonText: {
                 fontSize: 18,
-                color: isDark?'#00c9c9ff':'#00afafff',
+                color: isDark?'#00c9c9ff':'#0040ff',
                 fontFamily:'Anaheim-Bold',
-                textShadowColor: '#0040ffff', 
+                textShadowColor: isDark?'#0040ffff':'#00c9c9ff', 
                 textShadowOffset: { width: 0, height: 0 },
-                textShadowRadius: 50,
+                textShadowRadius: 25,
             },
             imageSelectortxt:{
                 margin:'2%',

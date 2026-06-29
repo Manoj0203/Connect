@@ -28,7 +28,7 @@ export default function HomeScreen (){
 
 	useEffect(() =>
 	{
-		const switchseetingup = async () =>
+		const switchsettingup = async () =>
 		{
 			const docRef = doc(db, 'users', curruser.uid);
 			const docSnap = await getDoc(docRef);
@@ -38,7 +38,7 @@ export default function HomeScreen (){
 				return;
 			}
 		}
-		switchseetingup();
+		switchsettingup();
 	},[])
 
 	useEffect(() =>
@@ -113,7 +113,7 @@ export default function HomeScreen (){
 
 	const styles = StyleSheet.create({
 		container: {
-			backgroundColor:isDark?"#252525":"#fff",
+			backgroundColor:isDark?"#252525":"#f6f6f6",
 			flex: 1,
 		},
 		header:
