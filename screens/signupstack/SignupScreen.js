@@ -1,26 +1,34 @@
-import { StyleSheet, Text, View,StatusBar, TextInput, TouchableOpacity, } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../../utils/Theme'
 import Entypo from "react-native-vector-icons/Entypo";
+import Feather from "react-native-vector-icons/Feather";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from '@react-navigation/native';
 import { createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import auth, { db }  from '../../services/firebaseAuth';
+import auth, { db } from '../../services/firebaseAuth';
 import { setDoc, doc, query, collection, where, getDocs, getFirestore } from 'firebase/firestore';
 import { Snackbar } from 'react-native-paper';
 
 const SignupScreen = () => {
 
-    const { Colour, isDark, TEXT, TEXTINPUT, BUTTON } = useTheme();
+    const { Colour, isDark, TEXT, TEXTINPUT, BUTTON, RADIUS } = useTheme();
 
     const navigate = useNavigation()
-    const placeholdercolor = isDark?'#acacacff':'#7e7e7eff'
+    const placeholdercolor = isDark ? '#acacacff' : '#7e7e7eff'
+    const accent = isDark ? '#06ec06' : '#00B341';
+    const accentSoft = isDark ? '#173620' : '#E6F9EC';
+    const border = isDark ? '#2E2E33' : '#E7E7ED';
+    const fontcolor = isDark ? '#F4F4F6' : '#17171B';
+    const mutedcolor = isDark ? '#9A9AA5' : '#75758A';
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showpasswd, setShowPasswd] = useState(false);
-    const [userdata, setUserData] = useState();
+    const [activesignupbtn, setActiveSignUpButton] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     // SnackBars
     const [usernameexistsnakcvisible, setUserNameExistSnackVisible] = useState(false);
@@ -28,165 +36,310 @@ const SignupScreen = () => {
     const [nospaceinusernamesnackvisible, setNoSpaceInUsernameSnackVisible] = useState(false);
     const [passwordlengthsnackvisible, setPasswordLengthSnackVisible] = useState(false);
 
-    const handlesignup = async() =>
-    {
-        try
-        {
+    const handlesignup = async () => {
+        setIsLoading(true);
+        setActiveSignUpButton(true);
+        try {
             const db = getFirestore();
             const q = query(collection(db, "users"), where("username", "==", username.toLowerCase()));
             const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) 
-            {
+            if (!querySnapshot.empty) {
                 setUserNameExistSnackVisible(true);
                 return;
             }
 
-            if(!email.trim() || !username.trim() || !password.trim())
-            {
+            if (!email.trim() || !username.trim() || !password.trim()) {
                 setEnterAllFieldsSnackVisible(true);
                 return;
             }
-            if(username)
-            {
+            if (username) {
                 const lst = username.split(' ');
-                if(lst.length >= 2)
-                {
+                if (lst.length >= 2) {
                     setNoSpaceInUsernameSnackVisible(true);
                     return;
                 }
             }
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+
+            await new Promise((resolve, reject) => {
+                const unsubscribe = onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        unsubscribe();
+                        resolve(user);
+                    }
+                });
+
+                setTimeout(() => {
+                    unsubscribe();
+                    reject(new Error("Authentication timeout"));
+                }, 10000);
+            });
+
+            const user = auth.currentUser;
+
+            if (!user) {
+                throw new Error("Authentication failed");
+            }
+
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
-                username:username.toLowerCase(),
-                email:email.toLowerCase(),
-                post:0,
-                friends:0,
-                requests:0,
+                username: username.toLowerCase(),
+                email: email.toLowerCase(),
+                post: 0,
+                friends: 0,
+                requests: 0,
                 createdAt: new Date(),
-                isVerified:false,
+                isVerified: false,
                 postliked: {},
-                phone_number: '',
-                otp:0,
-                otpVerified:false,
+                phone_number: "",
+                otp: 0,
+                otpVerified: false,
                 authentication: false,
-                nextOTPTime:0,
-                neotext:'',
-                isSetupComplete:false,
-                familyID:null,
+                nextOTPTime: 0,
+                neotext: "",
+                isSetupComplete: false,
+                familyID: null,
             });
-            navigate.replace('SettingUp')
+
+            navigate.replace("SettingUp");
         }
-        catch (error)
-        {
-            if(password.length < 6)
-            {
+        catch (error) {
+            if (password.length < 6) {
                 setPasswordLengthSnackVisible(true);
             }
             console.log(error)
         }
+        finally {
+            setIsLoading(false)
+            setActiveSignUpButton(false)
+        }
     }
-    
-  return (
-    <SafeAreaView style={Colour.bg}>
-        <StatusBar barStyle={'dark-content'} />
-        <View style={{flex:1, alignItems:'center', justifyContent:'center', width:'80%'}}>
-            <Text style={[TEXT.heading, {marginBottom:'10%'}]}> Sign up </Text>
-            <TextInput
-                placeholder='Username'
-                placeholderTextColor={isDark?'#acacacff':'#7e7e7eff'}
-                style={TEXTINPUT.txtinput}
-                value={username}
-                onChangeText={setUsername} />
-            <TextInput
-                placeholder='Email'
-                placeholderTextColor={isDark?'#acacacff':'#7e7e7eff'}
-                style={TEXTINPUT.txtinput}
-                keyboardType='email-address'
-                value={email}
-                onChangeText={setEmail} />
-            
-            <View style={{backgroundColor:isDark?'#666666dc':'#dadadadc',
-                borderRadius:8,
-                marginVertical:6,
-                minWidth:'80%',
-                minHeight:'5%', 
-                justifyContent:'space-between',
-                flexDirection:'row',}}>
-            
-                <TextInput
-                    style={{color:isDark?'#fff':'#000', width: '65%', fontFamily: "Anaheim-SemiBold",}}
-                    placeholder='Password'
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showpasswd}
-                    placeholderTextColor={isDark?'#acacacff':'#7e7e7eff'} />
-                    <TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
-                        {
-                            showpasswd? <Entypo name="eye" size={20} color={placeholdercolor} style={{alignSelf:'center', top:'22%', marginRight:'5%', justifyContent:'center'}} />
-                            :
-                            <Entypo name="eye-with-line" size={20} color={placeholdercolor} style={{alignSelf:'center', top:'22%', marginRight:'5%', justifyContent:'center'}} />
-                        }
-                    </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={BUTTON.subbtn} onPress={handlesignup}>
-                <Text style={BUTTON.subbtntxt}>Sign up</Text>
-            </TouchableOpacity>
-            <View style={{flexDirection:'row'}}>
-                <Text style={{color:isDark?"#fff":'#000', marginTop:'6%', fontFamily: "Anaheim-Regular", fontSize:15}}>Already have account? </Text>
-                <TouchableOpacity style={{ marginTop:'5%'}} onPress={() => navigate.replace('Login')}>
-                    <Text style={{color:isDark?'#06ec06ff':'#00cc00ff', fontFamily: "Anaheim-Bold", fontSize:15}}>Login</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
 
-        {/* USERNAME NOT EXIST SNACK */}
-        <Snackbar
-            visible={usernameexistsnakcvisible}
-            onDismiss={()=>setUserNameExistSnackVisible(false)}
-            onclick={() => setUserNameExistSnackVisible(false)}
-            duration={3000}
-            wrapperStyle={{position:'absolute'}}
-            sidebg={{backgroundColor:'rgba(255, 71, 71, 1)'}}>
-            username already in use!
-        </Snackbar>
+    const styles = StyleSheet.create({
+        scrollContent: {
+            flexGrow: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+        },
+        formWrap: {
+            width: '85%',
+            alignItems: 'center',
+        },
+        logoCircle: {
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            backgroundColor: accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 14,
+        },
+        subtitle: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-Regular',
+            fontSize: 14,
+            marginTop: 4,
+            marginBottom: 28,
+        },
+        inputWrap: {
+            width: '100%',
+            marginBottom: 14,
+        },
+        inputLabel: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-SemiBold',
+            fontSize: 12.5,
+            marginBottom: 6,
+            marginLeft: 4,
+        },
+        inputRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#1C1C1F' : '#EFEFF4',
+            borderRadius: RADIUS?.md ?? 12,
+            borderWidth: 1,
+            borderColor: border,
+            paddingHorizontal: 14,
+            minHeight: 50,
+            width: '100%',
+        },
+        inputIcon: {
+            marginRight: 10,
+        },
+        textInput: {
+            flex: 1,
+            color: fontcolor,
+            fontFamily: 'Anaheim-SemiBold',
+            fontSize: 15,
+        },
+        signupBtn: {
+            width: '100%',
+            backgroundColor: accent,
+            borderRadius: RADIUS?.md ?? 12,
+            paddingVertical: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 6,
+            shadowColor: accent,
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+        },
+        signupBtnText: {
+            color: isDark ? '#000' : '#fff',
+            fontFamily: 'Anaheim-Bold',
+            fontSize: 16,
+        },
+        bottomRow: {
+            flexDirection: 'row',
+            marginTop: 22,
+        },
+        bottomText: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-Regular',
+            fontSize: 14.5,
+        },
+        bottomLink: {
+            color: accent,
+            fontFamily: 'Anaheim-Bold',
+            fontSize: 14.5,
+        },
+    })
 
-        {/* ENTER ALL FIELD SNACK */}
-        <Snackbar
-            visible={enterallfieldssnackvisible}
-            onDismiss={()=>setEnterAllFieldsSnackVisible(false)}
-            onclick={() => setEnterAllFieldsSnackVisible(false)}
-            duration={3000}
-            wrapperStyle={{position:'absolute'}}
-            sidebg={{backgroundColor:'rgba(255, 71, 71, 1)'}}>
-            Enter all fields!
-        </Snackbar>
+    return (
+        <SafeAreaView style={[Colour?.bg ?? { flex: 1 }]}>
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.formWrap}>
 
-        {/* NO SPACE IN USERNAME SNACK */}
-        <Snackbar
-            visible={nospaceinusernamesnackvisible}
-            onDismiss={()=>setNoSpaceInUsernameSnackVisible(false)}
-            onclick={() => setNoSpaceInUsernameSnackVisible(false)}
-            duration={3000}
-            wrapperStyle={{position:'absolute'}}
-            sidebg={{backgroundColor:'rgba(255, 71, 71, 1)'}}>
-            No spaces allowed in username!
-        </Snackbar>
+                        <View style={styles.logoCircle}>
+                            <MaterialCommunityIcons name="account-plus-outline" size={32} color={accent} />
+                        </View>
+                        <Text style={TEXT?.heading}>Create account</Text>
+                        <Text style={styles.subtitle}>Sign up to get started</Text>
 
-        {/* PASSWORD LENGTH 6 SNACK */}
-        <Snackbar
-            visible={passwordlengthsnackvisible}
-            onDismiss={()=>setPasswordLengthSnackVisible(false)}
-            onclick={() => setPasswordLengthSnackVisible(false)}
-            duration={3000}
-            wrapperStyle={{position:'absolute'}}
-            style={{height:'auto'}}
-            sidebg={{backgroundColor:'rgba(255, 71, 71, 1)'}}>
-            Password should be at least 6 characters long!
-        </Snackbar>
-    </SafeAreaView>
-  )
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Username</Text>
+                            <View style={styles.inputRow}>
+                                <Feather name="user" size={18} color={mutedcolor} style={styles.inputIcon} />
+                                <TextInput
+                                    placeholder='Username'
+                                    placeholderTextColor={placeholdercolor}
+                                    style={styles.textInput}
+                                    autoCapitalize='none'
+                                    value={username}
+                                    onChangeText={setUsername} />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Email</Text>
+                            <View style={styles.inputRow}>
+                                <Feather name="mail" size={18} color={mutedcolor} style={styles.inputIcon} />
+                                <TextInput
+                                    placeholder='you@example.com'
+                                    placeholderTextColor={placeholdercolor}
+                                    style={styles.textInput}
+                                    keyboardType='email-address'
+                                    autoCapitalize='none'
+                                    value={email}
+                                    onChangeText={setEmail} />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Password</Text>
+                            <View style={styles.inputRow}>
+                                <Feather name="lock" size={18} color={mutedcolor} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder='Password'
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showpasswd}
+                                    placeholderTextColor={placeholdercolor} />
+                                <TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
+                                    {
+                                        showpasswd ? <Entypo name="eye" size={20} color={mutedcolor} />
+                                            :
+                                            <Entypo name="eye-with-line" size={20} color={mutedcolor} />
+                                    }
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity disabled={activesignupbtn} style={styles.signupBtn} onPress={handlesignup}>
+                            {
+                                isLoading ?
+                                    <ActivityIndicator size={'large'} color={accent} />
+                                    :
+                                    <Text style={styles.signupBtnText}>Sign up</Text>
+                            }
+                        </TouchableOpacity>
+
+                        <View style={styles.bottomRow}>
+                            <Text style={styles.bottomText}>Already have account? </Text>
+                            <TouchableOpacity onPress={() => navigate.replace('Login')}>
+                                <Text style={styles.bottomLink}>Login</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+
+            {/* USERNAME NOT EXIST SNACK */}
+            <Snackbar
+                visible={usernameexistsnakcvisible}
+                onDismiss={() => setUserNameExistSnackVisible(false)}
+                onclick={() => setUserNameExistSnackVisible(false)}
+                duration={3000}
+                wrapperStyle={{ position: 'absolute' }}
+                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+                username already in use!
+            </Snackbar>
+
+            {/* ENTER ALL FIELD SNACK */}
+            <Snackbar
+                visible={enterallfieldssnackvisible}
+                onDismiss={() => setEnterAllFieldsSnackVisible(false)}
+                onclick={() => setEnterAllFieldsSnackVisible(false)}
+                duration={3000}
+                wrapperStyle={{ position: 'absolute' }}
+                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+                Enter all fields!
+            </Snackbar>
+
+            {/* NO SPACE IN USERNAME SNACK */}
+            <Snackbar
+                visible={nospaceinusernamesnackvisible}
+                onDismiss={() => setNoSpaceInUsernameSnackVisible(false)}
+                onclick={() => setNoSpaceInUsernameSnackVisible(false)}
+                duration={3000}
+                wrapperStyle={{ position: 'absolute' }}
+                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+                No spaces allowed in username!
+            </Snackbar>
+
+            {/* PASSWORD LENGTH 6 SNACK */}
+            <Snackbar
+                visible={passwordlengthsnackvisible}
+                onDismiss={() => setPasswordLengthSnackVisible(false)}
+                onclick={() => setPasswordLengthSnackVisible(false)}
+                duration={3000}
+                wrapperStyle={{ position: 'absolute' }}
+                style={{ height: 'auto' }}
+                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+                Password should be at least 6 characters long!
+            </Snackbar>
+        </SafeAreaView>
+    )
 }
 
 export default SignupScreen

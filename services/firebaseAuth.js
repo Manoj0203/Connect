@@ -13,7 +13,7 @@ const firebaseConfig = {
   projectId: "connect-9cd26",
   storageBucket: "connect-9cd26.firebasestorage.app",
   messagingSenderId: "264923450484",
-  appId: "1:264923450484:web:e9767812d97fbe81fd5521"
+  appId: "1:264923450484:web:e9767812d97fbe81fd5521",
 };
 
 let auth;

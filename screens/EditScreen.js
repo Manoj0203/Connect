@@ -170,7 +170,7 @@ const EditScreen = () => {
     });
 
   return (
-    <SafeAreaView style={{backgroundColor:isDark?'#252525':'#f6f6f6', flex:1,}}>
+    <SafeAreaView style={{backgroundColor:isDark ? "#121214" : "#F7F7FA", flex:1,}}>
         <View style={{flexDirection:'row'}}>
                 {/* HEADER */}
             <View style={styles.header}>

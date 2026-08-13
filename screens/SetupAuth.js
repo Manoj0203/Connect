@@ -34,7 +34,7 @@ export default function SetupAuth() {
     const [falseLength, setFalseLength] = useState(false);
     const [snackbar, setSnackbar] = useState(false);
 
-    const BACKEND_URL = "http://192.168.1.4:3000/";
+    const BACKEND_URL = "https://connect-backend-pi.vercel.app/";
 
     const handleSave = async () => {
         if (!/^\d{4}$/.test(pin)) {

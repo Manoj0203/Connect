@@ -39,7 +39,7 @@ export default function WelcomeScreen (){
   })
 
   return (
-    <SafeAreaView style={Colour.bg}>
+    <SafeAreaView style={[Colour.bg, {alignItems:'center', justifyContent:'center'}]}>
       <StatusBar barStyle={'dark-content'} />
       <Text style={TEXT.heading}>Welcome</Text>
       <Text style={TEXT.moto}>Connect with lovable one!!</Text>

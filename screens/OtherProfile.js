@@ -5,6 +5,7 @@ import { addDoc, collection, deleteDoc, doc, getDoc, increment, serverTimestamp,
 import Feather from 'react-native-vector-icons/Feather';
 import { BlurView } from '@react-native-community/blur';
 import Modal from 'react-native-modal';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import auth from '../services/firebaseAuth'
 import { db } from '../services/firebaseAuth'
@@ -31,9 +32,13 @@ const OtherProfile = () => {
 
     const [isprofilevisible, setIsProfileVisible] = useState(false);
 
-
-    const profilecard = isDark ? '#5c5c5cff' : '#929292ff'
-    const fontcolor = isDark ? '#fff' : '#000';
+    const bg = isDark ? '#121214' : '#F7F7FA';
+    const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
+    const border = isDark ? '#2E2E33' : '#E7E7ED';
+    const fontcolor = isDark ? '#F4F4F6' : '#17171B';
+    const mutedcolor = isDark ? '#9A9AA5' : '#75758A';
+    const accent = isDark ? '#cdcdcd' : '#000000';
+    const accentSoft = isDark ? '#232323' : '#E6F9EC';
 
     const navi = useNavigation();
 
@@ -166,98 +171,117 @@ const OtherProfile = () => {
             flexDirection: 'row',
             width: '100%',
         },
-        postfrndreqcard:
-        {
-            backgroundColor: isDark ? '#6d6d6dff' : '#bebebeff',
-            borderTopRightRadius: 15,
-            borderBottomRightRadius: 20,
-            justifyContent: 'center',
-            marginLeft: '2.5%',
-            alignItems: 'center',
-            marginVertical: 5,
-            width: 75
-        },
         header:
         {
-            width: '75%',
+            width: '100%',
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: '3%',
-            gap: 15,
+            paddingHorizontal: '4%',
+            paddingTop: 6,
+            gap: 10,
         },
-        postfrndreqcardshare:
-        {
-            backgroundColor: isDark ? '#1c1c1c' : '#989898',
-            justifyContent: 'center',
-            marginLeft: '2.5%',
+        profileCard: {
+            width: '92%',
+            backgroundColor: cardBg,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: border,
+            padding: '2%',
+            alignSelf: 'center',
+        },
+        statBox: {
+            flex: 1,
             alignItems: 'center',
-            marginVertical: 5,
-            width: 75,
-            padding: 5,
-            borderRadius: 10
+            paddingVertical: 10,
         },
+        statDivider: {
+            width: 1,
+            backgroundColor: border,
+            marginVertical: 6,
+        },
+        actionBtn: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 10,
+            borderRadius: 12,
+            backgroundColor: accentSoft,
+        },
+        modalStatBox: {
+            flex: 1,
+            alignItems: 'center',
+            paddingVertical: 10,
+        }
     })
 
     return (
-        <SafeAreaView style={{ backgroundColor: isDark ? "#252525" : "#f6f6f6", flex: 1, alignItems: 'center' }}>
-            <StatusBar barStyle={'dark-content'} />
-            <View style={{ flexDirection: 'row', alignSelf: 'flex-start', paddingLeft: '6%', marginBottom: 15 }}>
-                {/* HEADER */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    {/* APP NAME */}
-                    <TouchableOpacity onPress={() => navi.goBack()}>
-                        <Feather name="arrow-left" size={24} color={isDark ? "#fff" : '#000'} />
-                    </TouchableOpacity>
-                    <Text style={[TEXT.heading, { fontSize: 22, fontFamily: 'Anaheim-Bold' }]}>{value?.username ?? 'Unknown user'}</Text>
-                </View>
+        <SafeAreaView style={{ backgroundColor: bg, flex: 1, alignItems: 'center' }}>
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+            {/* HEADER */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navi.goBack()}>
+                    <Feather name="arrow-left" size={22} color={fontcolor} />
+                </TouchableOpacity>
+                <Text style={[TEXT.heading, { fontSize: 20 }]}>{value?.username ?? 'Unknown user'}</Text>
             </View>
-            <ScrollView style={{ width: '96%', }}>
-                <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                    <View style={{ flexDirection: 'row', backgroundColor: profilecard, width: '95%', borderTopRightRadius: 20, borderTopLeftRadius: 20, gap: 10 }}>
+
+            <ScrollView style={{ width: '100%', marginTop: 14 }} showsVerticalScrollIndicator={false}>
+                {/* PROFILE CARD */}
+                <View style={styles.profileCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Image
                             source={{ uri: imageUri }}
                             style={PROFILEPIC.ProfileScreenpic}
                         />
-                        <View style={{ height: 75, width: '70%' }}>
-                            <Text style={{ color: '#fff', marginTop: 10, fontFamily: 'Anaheim-Bold' }}>{value?.fullname}</Text>
-                            <Text style={[TEXT.neonText, {}]}>{value?.neotext}</Text>
+                        <View style={{ flex: 1, marginLeft: 6 }}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }} numberOfLines={1}>{value?.fullname}</Text>
+                            <Text style={TEXT.neonText}>{value?.neotext}</Text>
                         </View>
                     </View>
-                    <View style={{ backgroundColor: profilecard, flexDirection: 'row', width: '95%', borderBottomRightRadius: 20, borderBottomLeftRadius: 20, minHeight: 70, justifyContent: 'space-between', marginTop: '0.3%' }}>
-                        <View style={[styles.postfrndreqcard, { borderBottomLeftRadius: 20, }]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.post ?? 0}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold' }}>Posts</Text>
-                        </View>
-                        <View style={[styles.postfrndreqcard, { borderRadius: 20, width: 75 }]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.friends ?? 0}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', }} >Friends</Text>
-                        </View>
-                        <View style={[styles.postfrndreqcard, { marginRight: '2.5%', borderTopRightRadius: 0, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, width: 80 }]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.requests ?? 0}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold' }}>Requests</Text>
-                        </View>
-                    </View>
-                </View>
-                <View id='bio' style={{ flex: 1, marginLeft: '5%', marginTop: '5%' }}>
-                    {
-                        value?.bio ?
-                            (
-                                fullbio ?
-                                    <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Regular' }} onPress={() => setFullBio(!fullbio)}>{value?.bio}</Text>
-                                    : <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Regular' }} numberOfLines={3} onPress={() => setFullBio(!fullbio)}>{value?.bio}</Text>
-                            )
-                            : <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Regular' }}>Nothing to look up here 😢</Text>
-                    }
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'space-between', marginHorizontal: '3%', marginTop: 17 }}>
-                    <TouchableOpacity onPress={inFriends ? handleRemoveFromFriends : friendsrequestsent ? handleCancelFriendRequest : handleFriendRequest} style={PROFILEPIC.editsharebtn}>
-                        <Text style={{ color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-Bold' }}>{inFriends ? "Remove Friend" : friendsrequestsent ? 'Cancel' : 'Add as Friend'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setIsProfileVisible(true)} style={PROFILEPIC.editsharebtn}>
-                        <Text style={{ color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-Bold' }}>Profile Card</Text>
-                    </TouchableOpacity>
 
+                    {/* BIO */}
+                    <View id='bio' style={{ marginTop: 0 }}>
+                        {
+                            value?.bio ?
+                                (
+                                    fullbio ?
+                                        <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 14 }} onPress={() => setFullBio(!fullbio)}>{value?.bio}</Text>
+                                        : <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 14 }} numberOfLines={3} onPress={() => setFullBio(!fullbio)}>{value?.bio}</Text>
+                                )
+                                : <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 14 }}>Nothing to look up here 😢</Text>
+                        }
+                    </View>
+
+                    {/* STATS */}
+                    <View style={{ flexDirection: 'row', marginTop: 14, backgroundColor: isDark ? '#232326' : '#F3F3F7', borderRadius: 14 }}>
+                        <View style={styles.statBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.post ?? 0}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.friends ?? 0}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.requests ?? 0}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Requests</Text>
+                        </View>
+                    </View>
+
+                    {/* ACTIONS */}
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                        <TouchableOpacity onPress={inFriends ? handleRemoveFromFriends : friendsrequestsent ? handleCancelFriendRequest : handleFriendRequest} style={styles.actionBtn}>
+                            <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>{inFriends ? "Remove Friend" : friendsrequestsent ? 'Cancel' : 'Add as Friend'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setIsProfileVisible(true)} style={styles.actionBtn}>
+                            <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>Profile Card</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
+                <View style={{ height: 30 }} />
             </ScrollView>
 
             {/* Profile Card */}
@@ -277,40 +301,45 @@ const OtherProfile = () => {
                 }
                 style={{ alignItems: 'center', justifyContent: 'center' }}
             >
-                <View style={{ width: '90%', height: '38%', backgroundColor: isDark ? '#000000' : '#b6b6b6', borderRadius: 13, padding: 15 }}>
+                <View style={{ width: '88%', backgroundColor: cardBg, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: border }}>
                     {/* HEADER */}
-                    <View style={{ alignItems: 'center', marginTop: 10 }}>
+                    <View style={{ alignItems: 'center' }}>
                         <Image
                             source={{ uri: imageUri }}
-                            style={[{ position: 'absolute', height: 85, width: 85, borderRadius: 25, borderWidth: 3, borderColor: isDark ? '#000' : '#fff', marginTop: '-25%' },]}
+                            style={{ height: 88, width: 88, borderRadius: 24, borderWidth: 3, borderColor: cardBg, marginTop: -60 }}
                         />
+                        <Text style={[TEXT.usernametxt, { fontSize: 19, textAlign: 'center', marginTop: 12, marginLeft: 0 }]}>{value?.fullname}</Text>
+                        <Text style={{ color: accent, fontFamily: 'Anaheim-SemiBold', fontSize: 14 }}>{"@" + value?.username}</Text>
+                        <Text numberOfLines={3} style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 13, textAlign: 'center', marginTop: 6 }}>{value?.bio}</Text>
                     </View>
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={[TEXT.usernametxt, { fontSize: 20, textAlign: 'center', marginTop: '7%' }]}>{value?.fullname}</Text>
-                        <Text style={[TEXT.usernametxt, { fontSize: 16, textAlign: 'center', fontFamily: 'Anaheim-SemiBold' }]}>{"@" + value?.username}</Text>
-                        <Text numberOfLines={3} style={[TEXT.usernametxt, { fontSize: 14, textAlign: 'center', fontFamily: 'Anaheim-Regular' }]}>{value?.bio}</Text>
+
+                    {/* STATS */}
+                    <View style={{ marginTop: 18, flexDirection: 'row', backgroundColor: isDark ? '#232326' : '#F3F3F7', borderRadius: 14 }}>
+                        <View style={styles.modalStatBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.post}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.modalStatBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.friends}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.modalStatBox}>
+                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.requests}</Text>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Requests</Text>
+                        </View>
                     </View>
-                    <View style={{ alignItems: 'center', marginTop: 15, justifyContent: 'space-between', flexDirection: 'row', }}>
-                        <View style={[styles.postfrndreqcardshare,]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.post}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold' }}>Posts</Text>
-                        </View>
-                        <View style={[styles.postfrndreqcardshare,]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.friends}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', }} >Friends</Text>
-                        </View>
-                        <View style={[styles.postfrndreqcardshare, { marginRight: '2.5%', }]}>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 17, alignSelf: 'center' }}>{value?.requests}</Text>
-                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-SemiBold' }}>Requests</Text>
-                        </View>
-                    </View>
+
+                    {/* ACTION */}
                     <View style={{ alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row', marginTop: '3.5%', gap: 10 }}>
-                        <TouchableOpacity onPress={inFriends ? handleRemoveFromFriends : friendsrequestsent ? handleCancelFriendRequest : handleFriendRequest} style={[PROFILEPIC.editsharebtn, { backgroundColor: isDark ? '#1c1c1c' : '#989898', flex: 1 }]}>
+                        <TouchableOpacity onPress={inFriends ? handleRemoveFromFriends : friendsrequestsent ? handleCancelFriendRequest : handleFriendRequest} style={[PROFILEPIC.editsharebtn, { backgroundColor: isDark ? '#232326' : '#F3F3F7', flex: 1 }]}>
                             <Text style={{ color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-Bold' }}>{inFriends ? "Remove Friend" : friendsrequestsent ? 'Cancel' : 'Add as Friend'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-                <View style={{ maxWidth: '100%', marginTop: '5%' }}>
+
+                <View style={{ maxWidth: '100%', marginTop: 20 }}>
                     <Text style={[TEXT.neonText, { fontSize: 25, textAlign: 'center' }]}>{value?.neotext ? value?.neotext.trim() : ''}</Text>
                 </View>
             </Modal>

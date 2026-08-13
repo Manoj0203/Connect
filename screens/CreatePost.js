@@ -1,23 +1,26 @@
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Image } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Image } from 'react-native'
 import React, { useRef, useState } from 'react'
 import { actions, RichEditor, RichToolbar } from "react-native-pell-rich-editor";
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../utils/Theme';
-import { updateDoc, doc, addDoc, collection, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
+import { updateDoc, doc, serverTimestamp, getDoc, setDoc, collection } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
 import ImagePicker from 'react-native-image-crop-picker';
 import { ActivityIndicator, Snackbar } from 'react-native-paper'
 
-
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CreatePost = () => {
 
-	const { Colour, isDark, TEXT } = useTheme();
+	const { isDark, TEXT } = useTheme();
 
-	const bgcolor = isDark ? '#252525' : '#f6f6f6';
-	const fontcolor = isDark ? '#fff' : '#000';
-	const placeholdercolor = isDark ? '#acacacff' : '#7e7e7eff'
+	const bgcolor = isDark ? '#121214' : '#F7F7FA';
+	const cardcolor = isDark ? '#1C1C1F' : '#FFFFFF';
+	const bordercolor = isDark ? '#2E2E33' : '#E7E7ED';
+	const fontcolor = isDark ? '#F4F4F6' : '#17171B';
+	const placeholdercolor = isDark ? '#9A9AA5' : '#75758A';
+	const accent = isDark ? '#06ec06' : '#00B341';
 
 	const richTextRef = useRef();
 	const [text, setText] = useState('');
@@ -72,7 +75,7 @@ const CreatePost = () => {
 
 			await setDoc(newPostRef, {
 				userID: user.uid,
-				postID: null,
+				postID: postId,
 				shareCount: 0,
 				content: text,
 				likes: 0,
@@ -81,7 +84,6 @@ const CreatePost = () => {
 				width: data?.width ?? null,
 				height: data?.height ?? null,
 				time: serverTimestamp(),
-				postID: postId,
 				likedby: {},
 				comments: {}
 			});
@@ -96,7 +98,6 @@ const CreatePost = () => {
 			richTextRef.current.setContentHTML('')
 			setImageUri(null)
 			setSuccessSnackVisible(true);
-			setImageUri(null);
 		}
 		catch (error) {
 			console.log(error);
@@ -130,42 +131,65 @@ const CreatePost = () => {
 	const styles = StyleSheet.create({
 		toolbar:
 		{
-			borderTopRightRadius: 8,
-			borderTopLeftRadius: 8,
-			backgroundColor: placeholdercolor,
+			borderTopRightRadius: 16,
+			borderTopLeftRadius: 16,
+			backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
+			borderBottomWidth: 1,
+			borderBottomColor: bordercolor,
 		},
 		editor:
 		{
 			flex: 1,
-			borderWidth: 2,
-			borderBottomLeftRadius: 8,
-			borderBottomRightRadius: 8,
-			borderColor: placeholdercolor,
-			padding: 5,
+			padding: 8,
 			placeholderColor: placeholdercolor,
-			backgroundColor: isDark ? "#252525" : "#fff",
+			backgroundColor: cardcolor,
 			color: fontcolor,
 		},
 		containerStyle:
 		{
-			borderWidth: 2,
-			minHeight: 240,
-			borderBottomLeftRadius: 8,
-			borderBottomRightRadius: 8,
-			borderColor: placeholdercolor,
-			padding: 5,
+			minHeight: 220,
+			borderBottomLeftRadius: 16,
+			borderBottomRightRadius: 16,
+			borderWidth: 1,
+			borderColor: bordercolor,
+			borderTopWidth: 0,
+			padding: 0,
+			overflow: 'hidden',
+		},
+		editorCard: {
+			borderRadius: 16,
+			borderWidth: 1,
+			borderColor: bordercolor,
+			overflow: 'hidden',
+		},
+		imagePicker: {
+			marginTop: 16,
+			borderRadius: 16,
+			borderWidth: 1,
+			borderColor: bordercolor,
+			backgroundColor: cardcolor,
+			overflow: 'hidden',
+		},
+		imagePickerHeader: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			paddingHorizontal: 14,
+			paddingVertical: 12,
 		},
 		imagePreview:
 		{
-			minHeight: 100,
+			minHeight: 120,
 			height: 'auto',
-			borderWidth: 2,
-			borderColor: placeholdercolor,
-			borderBottomLeftRadius: 8,
-			borderBottomRightRadius: 8,
 			justifyContent: 'center',
 			alignItems: 'center',
-			marginBottom: 15,
+		},
+		emptyImageBox: {
+			minHeight: 120,
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: 6,
+			paddingBottom: 16,
 		},
 		header:
         {
@@ -173,80 +197,81 @@ const CreatePost = () => {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingHorizontal: '5%'
-
-        }
+            paddingHorizontal: '4%',
+			paddingTop: 0,
+        },
+		postBtn: {
+			backgroundColor: accent,
+			paddingHorizontal: 18,
+			paddingVertical: 8,
+			borderRadius: 999,
+		}
 	})
 
 	return (
-		<View style={{ flex: 1, backgroundColor: bgcolor, width: '100%', padding: 0, alignItems: 'flex-start', }}>
+		<SafeAreaView style={{ flex: 1, backgroundColor: bgcolor, width: '100%' }}>
 
 			{/* HEADER */}
-			<View style={[styles.header, {marginBottom:'3%'}]}>
+			<View style={[styles.header, {marginBottom: 16}]}>
                 <Text style={TEXT.heading}>Create Post</Text>
 				{
 					posting ?
-						<ActivityIndicator color={isDark ? "#06ec06ff" : '#00cc00ff'} />
+						<ActivityIndicator color={accent} />
 						:
-						<TouchableOpacity onPress={handlePost}>
-							<Text style={[TEXT.usernametxt, { color: isDark ? "#06ec06ff" : '#00cc00ff' }]}>Post</Text>
+						<TouchableOpacity onPress={handlePost} style={styles.postBtn}>
+							<Text style={{ color: '#000', fontFamily: 'Anaheim-Bold', fontSize: 15 }}>Post</Text>
 						</TouchableOpacity>
 				}
             </View>
 
-			<View style={{ width: '100%', height: '100%', alignItems: 'center', }}>
-				{/* CONTENT */}
-				<View style={{ height: '91%', width: '90%', }}>
-
-					<ScrollView>
+			<View style={{ width: '100%', flex: 1, alignItems: 'center' }}>
+				<View style={{ width: '92%', flex: 1 }}>
+					<ScrollView showsVerticalScrollIndicator={false}>
 						<KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}
-							style={{ flex: 1, minHeight: 280, }}>
+							style={[styles.editorCard, { minHeight: 260 }]}>
 							<RichToolbar
 								style={styles.toolbar}
 								getEditor={() => richTextRef.current}
 								actions={[
-									actions.setBold,
 									actions.setItalic,
 									actions.setUnderline,
 									actions.insertBulletsList,
 									actions.insertOrderedList,
-									// actions.alignLeft,
-									// actions.alignCenter,
-									// actions.alignRight,
 									actions.insertLink,
-									actions.heading1,
 								]}
-								selectedIconTint={isDark ? '#57ff57' : '#00ff00ff'}
-								iconTint={isDark ? '#252525' : '#ffffffff'}
+								selectedIconTint={accent}
+								iconTint={placeholdercolor}
 							/>
 							<RichEditor
 								ref={richTextRef}
-								placeholder="What's in your mind today?"
+								placeholder="What's on your mind today?"
 								initialContentHTML={text}
 								onChange={desctext => setText(desctext)}
 								containerStyle={styles.containerStyle}
 								editorStyle={styles.editor} />
 						</KeyboardAvoidingView>
 
-						<View style={{ backgroundColor: placeholdercolor, marginTop: 15, borderTopLeftRadius: 8, borderTopRightRadius: 8, }}>
-							<TouchableOpacity onPress={handleImageSelection} style={{ flexDirection: 'row', alignItems: 'center' }}>
-								<Text style={[TEXT.imageSelectortxt, { marginRight: 10, }]}>Pick a image</Text>
-								<FontAwesome name="picture-o" size={20} color={isDark ? "#000" : "#fff"} style={{ marginTop: 5 }} />
+						<View style={styles.imagePicker}>
+							<TouchableOpacity onPress={handleImageSelection} style={styles.imagePickerHeader}>
+								<Text style={[TEXT.imageSelectortxt, { margin: 0 }]}>Add a photo</Text>
+								<FontAwesome name="picture-o" size={18} color={accent} />
 							</TouchableOpacity>
+							<View style={styles.imagePreview}>
+								{
+									imageUri ?
+										<Image
+											source={{ uri: imageUri.path }}
+											style={{ width: '100%', height: (imageUri.height / imageUri.width) * (screenWidth * 0.9) }}
+											resizeMode='cover' />
+										:
+										<TouchableOpacity onPress={handleImageSelection} style={styles.emptyImageBox}>
+											<Ionicons name="image-outline" size={26} color={placeholdercolor} />
+											<Text style={{ color: placeholdercolor, fontFamily: "Anaheim-Regular", fontSize: 13 }}>No image selected</Text>
+										</TouchableOpacity>
+								}
+							</View>
 						</View>
-						<View style={styles.imagePreview}>
-							{
-								imageUri ?
-									<Image
-										source={{ uri: imageUri.path }}
-										style={{ width: '100%', height: (imageUri.height / imageUri.width) * screenWidth, alignSelf: 'center', borderBottomLeftRadius: 8, borderBottomRightRadius: 8, }}
-										resizeMode='cover' />
-									:
-									<TouchableOpacity onPress={handleImageSelection}>
-										<Text style={[TEXT.imageSelectortxt, { color: isDark ? '#fff' : '#000', fontFamily: "Anaheim-Regular", }]}>No image selected</Text>
-									</TouchableOpacity>
-							}
-						</View>
+						<View style={{ height: 30 }} />
 					</ScrollView>
 				</View>
 
@@ -256,9 +281,8 @@ const CreatePost = () => {
 			<Snackbar
 				visible={errorsnackvisible}
 				onDismiss={() => setErrorSnackVisible(false)}
-				onclick={() => setErrorSnackVisible(false)}
 				duration={1500}
-				sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}
+				style={{ backgroundColor: '#F04452', borderRadius: 12 }}
 			>
 				Post can not be blank!
 			</Snackbar>
@@ -267,14 +291,13 @@ const CreatePost = () => {
 			<Snackbar
 				visible={successsnackvisible}
 				onDismiss={() => setSuccessSnackVisible(false)}
-				onclick={() => setSuccessSnackVisible(false)}
 				duration={1500}
 				wrapperStyle={{ position: 'absolute' }}
-				sidebg={{ backgroundColor: isDark ? 'rgba(86, 255, 71, 1)' : 'rgba(0, 192, 0, 1)' }}
+				style={{ backgroundColor: '#22C55E', borderRadius: 12 }}
 			>
 				Posted successfully!
 			</Snackbar>
-		</View>
+		</SafeAreaView>
 	)
 }
 

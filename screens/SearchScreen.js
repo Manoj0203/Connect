@@ -25,7 +25,7 @@ const SearchScreen = () => {
 
     const styles = StyleSheet.create({
         container: {
-            backgroundColor: isDark ? '#252525' : '#f6f6f6',
+            backgroundColor: isDark ? "#121214" : "#F7F7FA",
             flex: 1,
         },
         inputSearchtxt: {
@@ -100,7 +100,7 @@ const SearchScreen = () => {
     }
 
     return (
-        <View style={styles.container} >
+        <SafeAreaView style={styles.container} >
             <View style={styles.header}>
                 {/* APP NAME */}
                 <Text style={TEXT.heading}>Search</Text>
@@ -110,7 +110,7 @@ const SearchScreen = () => {
                 onChangeText={handledynamicsearch}
                 value={searcheduser}
                 inputStyle={[styles.inputSearchtxt, { marginTop: -8 }]}
-                style={{ backgroundColor: isDark ? '#151515' : '#cecece', marginHorizontal: 10, marginTop: 10, height: 40 }} />
+                style={{ backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4', marginHorizontal: 10, marginTop: 10, height: 40, borderRadius: 10, borderWidth: 1, borderColor: isDark ? '#555e56' : '#E7E7ED' }} />
 
             <FlatList
                 data={searcheduserarray}
@@ -125,7 +125,7 @@ const SearchScreen = () => {
                     </View>
                 )} />
 
-        </View>
+        </SafeAreaView>
     )
 }
 

@@ -1,8 +1,10 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar } from 'react-native'
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../utils/Theme'
 import Entypo from "react-native-vector-icons/Entypo";
+import Feather from "react-native-vector-icons/Feather";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from '@react-navigation/native';
 import { signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import auth, { db } from '../services/firebaseAuth';
@@ -12,10 +14,16 @@ import Modal from 'react-native-modal'
 import AlertModal from '../utils/AlertModal';
 
 const LoginScreen = () => {
-    const { Colour, isDark, TEXT, TEXTINPUT, BUTTON } = useTheme();
+    const { Colour, isDark, TEXT, TEXTINPUT, BUTTON, SPACING, RADIUS } = useTheme();
     const navigate = useNavigation();
 
     const placeholdercolor = isDark ? '#acacacff' : '#7e7e7eff'
+    const accent = isDark ? '#06ec06' : '#00B341';
+    const accentSoft = isDark ? '#173620' : '#E6F9EC';
+    const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
+    const border = isDark ? '#2E2E33' : '#E7E7ED';
+    const fontcolor = isDark ? '#F4F4F6' : '#17171B';
+    const mutedcolor = isDark ? '#9A9AA5' : '#75758A';
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -31,7 +39,7 @@ const LoginScreen = () => {
 
     const [invalid, setInValidSnackVisible] = useState(false);
 
-    const BACKEND_URL = "http://192.168.1.4:3000/";
+    const BACKEND_URL = "https://connect-backend-pi.vercel.app/";
 
     const handleLogin = async () => {
         signInWithEmailAndPassword(auth, email, password)
@@ -104,60 +112,211 @@ const LoginScreen = () => {
         }
     }
 
+    const styles = StyleSheet.create({
+        scrollContent: {
+            flexGrow: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+        },
+        formWrap: {
+            width: '85%',
+            alignItems: 'center',
+        },
+        logoCircle: {
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            backgroundColor: accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 14,
+        },
+        subtitle: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-Regular',
+            fontSize: 14,
+            marginTop: 4,
+            marginBottom: 28,
+        },
+        inputWrap: {
+            width: '100%',
+            marginBottom: 14,
+        },
+        inputLabel: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-SemiBold',
+            fontSize: 12.5,
+            marginBottom: 6,
+            marginLeft: 4,
+        },
+        inputRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#1C1C1F' : '#EFEFF4',
+            borderRadius: RADIUS?.md ?? 12,
+            borderWidth: 1,
+            borderColor: border,
+            paddingHorizontal: 14,
+            minHeight: 50,
+            width: '100%',
+        },
+        inputIcon: {
+            marginRight: 10,
+        },
+        textInput: {
+            flex: 1,
+            color: fontcolor,
+            fontFamily: 'Anaheim-SemiBold',
+            fontSize: 15,
+        },
+        loginBtn: {
+            width: '100%',
+            backgroundColor: accent,
+            borderRadius: RADIUS?.md ?? 12,
+            paddingVertical: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 14,
+            shadowColor: accent,
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+        },
+        loginBtnText: {
+            color: isDark?'#000':'#fff',
+            fontFamily: 'Anaheim-Bold',
+            fontSize: 16,
+        },
+        bottomRow: {
+            flexDirection: 'row',
+            marginTop: 22,
+        },
+        bottomText: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-Regular',
+            fontSize: 14.5,
+        },
+        bottomLink: {
+            color: accent,
+            fontFamily: 'Anaheim-Bold',
+            fontSize: 14.5,
+        },
+        forgotRow: {
+            flexDirection: 'row',
+            alignSelf: 'flex-end',
+            marginTop: 0,
+        },
+        modalCard: {
+            backgroundColor: cardBg,
+            padding: 20,
+            paddingTop: 14,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderWidth: 1,
+            borderColor: border,
+        },
+        modalHandle: {
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: isDark ? '#3A3A40' : '#D8D8E0',
+            alignSelf: 'center',
+            marginBottom: 14,
+        },
+        modalIconCircle: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            alignSelf: 'center',
+            marginBottom: 10,
+        },
+        modalSubtitle: {
+            color: mutedcolor,
+            fontFamily: 'Anaheim-Regular',
+            fontSize: 13,
+            textAlign: 'center',
+            marginBottom: 16,
+        },
+    })
+
     return (
-        <SafeAreaView style={Colour.bg}>
-            <StatusBar barStyle={'dark-content'} />
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', width: '80%', }}>
-                <Text style={[TEXT.heading, { marginBottom: '10%' }]}>Login</Text>
-                <TextInput
-                    placeholder='Email'
-                    placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'}
-                    style={TEXTINPUT.txtinput}
-                    keyboardType='email-address'
-                    value={email}
-                    onChangeText={setEmail} />
-                <View style={{
-                    backgroundColor: isDark ? '#666666dc' : '#dadadadc',
-                    borderRadius: 8,
-                    marginVertical: 6,
-                    minWidth: '80%',
-                    minHeight: '5%',
-                    justifyContent: 'space-between',
-                    flexDirection: 'row',
-                }}>
+        <SafeAreaView style={[Colour?.bg ?? { flex: 1 }]}>
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.formWrap}>
 
-                    <TextInput
-                        style={{ color: isDark ? '#fff' : '#000', width: '65%', fontFamily: "Anaheim-SemiBold", }}
-                        placeholder='Password'
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry={!showpasswd}
-                        placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'} />
-                    <TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
-                        {
-                            showpasswd ? <Entypo name="eye" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                                :
-                                <Entypo name="eye-with-line" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                        }
-                    </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={BUTTON.subbtn} onPress={handleLogin}>
-                    <Text style={BUTTON.subbtntxt}>Login</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row' }}>
-                    <Text style={{ color: isDark ? "#fff" : '#000', marginTop: '6%', fontFamily: "Anaheim-Regular", fontSize: 15 }}>New user? </Text>
-                    <TouchableOpacity style={{ marginTop: '5%' }} onPress={() => navigate.replace('Signup')}>
-                        <Text style={{ color: isDark ? '#06ec06ff' : '#00b300ff', fontFamily: "Anaheim-Bold", fontSize: 15 }}>Sign up</Text>
-                    </TouchableOpacity>
-                </View>
+                        <View style={styles.logoCircle}>
+                            <MaterialCommunityIcons name="account-circle-outline" size={32} color={accent} />
+                        </View>
+                        <Text style={TEXT?.heading}>Welcome back</Text>
+                        <Text style={styles.subtitle}>Login to continue</Text>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                    <Text style={{ color: isDark ? "#fff" : '#000', marginTop: '6%', fontFamily: "Anaheim-Regular", fontSize: 15 }}>Forgot password? </Text>
-                    <TouchableOpacity style={{ marginTop: '5%' }} onPress={() => setForgotPasswordModal(true)}>
-                        <Text style={{ color: isDark ? '#06ec06ff' : '#00b300ff', fontFamily: "Anaheim-Bold", fontSize: 15 }}>Click here</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Email</Text>
+                            <View style={styles.inputRow}>
+                                <Feather name="mail" size={18} color={mutedcolor} style={styles.inputIcon} />
+                                <TextInput
+                                    placeholder='you@example.com'
+                                    placeholderTextColor={placeholdercolor}
+                                    style={styles.textInput}
+                                    keyboardType='email-address'
+                                    autoCapitalize='none'
+                                    value={email}
+                                    onChangeText={setEmail} />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Password</Text>
+                            <View style={styles.inputRow}>
+                                <Feather name="lock" size={18} color={mutedcolor} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder='Password'
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showpasswd}
+                                    placeholderTextColor={placeholdercolor} />
+                                <TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
+                                    {
+                                        showpasswd ? <Entypo name="eye" size={20} color={mutedcolor} />
+                                            :
+                                            <Entypo name="eye-with-line" size={20} color={mutedcolor} />
+                                    }
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* <View style={styles.forgotRow}>
+                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 13.5 }}>Forgot password? </Text>
+                            <TouchableOpacity onPress={() => setForgotPasswordModal(true)}>
+                                <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13.5 }}>Click here</Text>
+                            </TouchableOpacity>
+                        </View> */}
+
+                        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
+                            <Text style={styles.loginBtnText}>Login</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.bottomRow}>
+                            <Text style={styles.bottomText}>New user? </Text>
+                            <TouchableOpacity onPress={() => navigate.replace('Signup')}>
+                                <Text style={styles.bottomLink}>Sign up</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
 
             <Modal
                 isVisible={forgotpasswordmodal}
@@ -165,73 +324,66 @@ const LoginScreen = () => {
                 hasBackdrop
                 onBackButtonPress={() => setForgotPasswordModal(false)}
                 onBackdropPress={() => setForgotPasswordModal(false)}
-                style={{ justifyContent: 'flex-end', }}>
-                <View style={{ bottom: -19, }}>
-                    <View id='Current Passwd' style={{ backgroundColor: isDark ? '#333' : '#fff', padding: 15, borderRadius: 8, alignItems: 'center', }}>
-                        <Text style={[TEXT.subheading, { alignSelf: 'center', marginBottom: 10, }]}>Forgot Password</Text>
+                style={{ justifyContent: 'flex-end', margin: 0 }}>
+                <View style={styles.modalCard}>
+                    <View style={styles.modalHandle} />
+                    <View style={styles.modalIconCircle}>
+                        <MaterialCommunityIcons name="lock-reset" size={22} color={accent} />
+                    </View>
+                    <Text style={[TEXT?.subheading, { alignSelf: 'center', marginLeft: 0, textAlign: 'center' }]}>Forgot Password</Text>
+                    <Text style={styles.modalSubtitle}>Enter your email, PIN, and a new password</Text>
+
+                    <View style={[styles.inputRow, { marginBottom: 10 }]}>
+                        <Feather name="mail" size={18} color={mutedcolor} style={styles.inputIcon} />
                         <TextInput
                             placeholder='Email'
-                            placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'}
-                            style={[TEXTINPUT.txtinput, { minWidth: '97%' }]}
+                            placeholderTextColor={placeholdercolor}
+                            style={styles.textInput}
                             keyboardType='email-address'
+                            autoCapitalize='none'
                             value={forgotemail}
                             onChangeText={setForgotEmail} />
+                    </View>
 
-                        <View style={{
-                            backgroundColor: isDark ? '#666666dc' : '#dadadadc',
-                            borderRadius: 8,
-                            marginVertical: 6,
-                            minWidth: '95%',
-                            minHeight: '5%',
-                            justifyContent: 'space-between',
-                            flexDirection: 'row',
-                        }}>
-
-                            <TextInput
-                                style={{ color: isDark ? '#fff' : '#000', width: '85%', fontFamily: "Anaheim-SemiBold", }}
-                                placeholder='Pin'
-                                value={forgotpin}
-                                onChangeText={setForgotPin}
-                                secureTextEntry={!showpin}
-                                placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'} />
-                            <TouchableOpacity onPress={() => setShowPin(!showpin)}>
-                                {
-                                    showpin ? <Entypo name="eye" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                                        :
-                                        <Entypo name="eye-with-line" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                                }
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={{
-                            backgroundColor: isDark ? '#666666dc' : '#dadadadc',
-                            borderRadius: 8,
-                            marginVertical: 6,
-                            minWidth: '95%',
-                            minHeight: '5%',
-                            justifyContent: 'space-between',
-                            flexDirection: 'row',
-                        }}>
-
-                            <TextInput
-                                style={{ color: isDark ? '#fff' : '#000', width: '85%', fontFamily: "Anaheim-SemiBold", }}
-                                placeholder='New Password'
-                                value={forgotpassword}
-                                onChangeText={setForgotPassword}
-                                secureTextEntry={!showforgotpasswd}
-                                placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'} />
-                            <TouchableOpacity onPress={() => setShowForgotPasswd(!showforgotpasswd)}>
-                                {
-                                    showforgotpasswd ? <Entypo name="eye" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                                        :
-                                        <Entypo name="eye-with-line" size={20} color={placeholdercolor} style={{ alignSelf: 'center', top: '22%', marginRight: '5%', justifyContent: 'center' }} />
-                                }
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity style={BUTTON.subbtn} onPress={changeForgotPassword}>
-                            <Text style={BUTTON.subbtntxt}>Change</Text>
+                    <View style={[styles.inputRow, { marginBottom: 10 }]}>
+                        <MaterialCommunityIcons name="numeric" size={18} color={mutedcolor} style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder='Pin'
+                            value={forgotpin}
+                            onChangeText={setForgotPin}
+                            secureTextEntry={!showpin}
+                            placeholderTextColor={placeholdercolor} />
+                        <TouchableOpacity onPress={() => setShowPin(!showpin)}>
+                            {
+                                showpin ? <Entypo name="eye" size={20} color={mutedcolor} />
+                                    :
+                                    <Entypo name="eye-with-line" size={20} color={mutedcolor} />
+                            }
                         </TouchableOpacity>
                     </View>
+
+                    <View style={[styles.inputRow, { marginBottom: 16 }]}>
+                        <Feather name="lock" size={18} color={mutedcolor} style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder='New Password'
+                            value={forgotpassword}
+                            onChangeText={setForgotPassword}
+                            secureTextEntry={!showforgotpasswd}
+                            placeholderTextColor={placeholdercolor} />
+                        <TouchableOpacity onPress={() => setShowForgotPasswd(!showforgotpasswd)}>
+                            {
+                                showforgotpasswd ? <Entypo name="eye" size={20} color={mutedcolor} />
+                                    :
+                                    <Entypo name="eye-with-line" size={20} color={mutedcolor} />
+                            }
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity style={styles.loginBtn} onPress={changeForgotPassword}>
+                        <Text style={styles.loginBtnText}>Change Password</Text>
+                    </TouchableOpacity>
                 </View>
             </Modal>
 
@@ -251,5 +403,3 @@ const LoginScreen = () => {
 }
 
 export default LoginScreen
-
-const styles = StyleSheet.create({})

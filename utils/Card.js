@@ -1,17 +1,11 @@
 // REPORT PENDING
 
-
-
-
-
-
-
-
 import {
     FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View,
     useWindowDimensions, KeyboardAvoidingView, Platform, TextInput,
     Pressable
 } from 'react-native'
+import { optimizeCloudinaryUrl } from './Cloudinary';
 import React, { useEffect, useState } from 'react'
 import { useTheme } from './Theme'
 import RenderHtml from 'react-native-render-html'
@@ -21,7 +15,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Entypo from 'react-native-vector-icons/Entypo';
 
-import { getDoc, doc, updateDoc, increment, deleteField, onSnapshot, collection, query, orderBy, addDoc } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, increment, deleteField, collection, query, orderBy, where, addDoc, deleteDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
 import PopUp from './PopUp'
 import { Divider, } from 'react-native-paper';
@@ -41,79 +35,80 @@ const Card = ({ item, curruser }) => {
     const [comments, setComments] = useState([]);
     const [commentid, setCommentID] = useState('');
     const [userid, setUserID] = useState('');
+    const [reportedCommentIds, setReportedCommentIds] = useState([]);
 
     const [iscommentmodaloption, setIsCommentModalOption] = useState(false);
     const [iscommentmodalvisible, setIsCommentModalVisible] = useState(false);
 
-    const [fullName, setFullName] = useState(item?.fullNme)
-    const [username, setUserName] = useState(item?.username)
-    const [image, setImage] = useState(item?.pic)
+    // NEW: edit-comment state
+    const [iseditmodalvisible, setIsEditModalVisible] = useState(false);
+    const [editCommentText, setEditCommentText] = useState('');
+
+    const [fullName, setFullName] = useState(item?.fullName || item?.fullNme);
+    const [username, setUserName] = useState(item?.username);
+    const [image, setImage] = useState(item?.pic);
+    const [areCommentsLoaded, setAreCommentsLoaded] = useState(false);
+
+    const loadReports = async () => {
+        try {
+            // Fetch reports
+            const reportsRef = collection(db, 'Reports');
+            const qReports = query(
+                reportsRef,
+                where('reportedByUserID', '==', curruser),
+                where('postID', '==', item.postID)
+            );
+            const snapshotReports = await getDocs(qReports);
+            const ids = snapshotReports.docs.map((d) => d.data().commentID);
+            setReportedCommentIds(ids);
+
+            setAreCommentsLoaded(true);
+        } catch (error) {
+            console.error("Error loading reports:", error);
+        }
+    };
 
     useEffect(() => {
-        const unsubs = onSnapshot(doc(db, 'users', item.userID), (docSnap) => {
-            setImage(docSnap.data().image)
-            setFullName(docSnap.data().fullname)
-            setUserName(docSnap.data().username)
-        });
-        return () => unsubs();
-    }, [])
+        let unsubscribe = null;
+        if (iscommentmodalvisible) {
+            const commentsRef = collection(db, 'posts', item.postID, 'comments');
+            const q = query(commentsRef, orderBy('createdAt', 'desc'));
+            
+            unsubscribe = onSnapshot(q, async (snapshot) => {
+                const commentsData = await Promise.all(
+                    snapshot.docs.map(async (commentDoc) => {
+                        const data = commentDoc.data();
+                        const userSnap = await getDoc(doc(db, 'users', data.userID));
+                        return {
+                            id: commentDoc.id,
+                            comment: data.comment,
+                            userID: data.userID,
+                            createdAt: data.createdAt,
+                            editedAt: data.editedAt || null,
+                            username: userSnap.exists() ? userSnap.data().username : 'Unknown User',
+                            fullName: userSnap.exists() ? userSnap.data().fullname : 'Unknown User',
+                            pic: userSnap.exists() ? optimizeCloudinaryUrl(userSnap.data().image, 50) : null,
+                            verified: userSnap.exists() ? userSnap.data().isVerified : false,
+                        };
+                    })
+                );
+                setComments(commentsData);
+            });
+        }
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, [iscommentmodalvisible, item.postID]);
 
-    // useEffect(() =>
-    // {
-    //     if(Object.keys(item?.likedby) == curruser)
-    //     {
-    //         setIsPostLiked(true)
-    //     }
-    //     getComments();
-    // },[]);
+    useEffect(() => {
+        if (iscommentmodalvisible && !areCommentsLoaded) {
+            loadReports();
+        }
+    }, [iscommentmodalvisible]);
 
     useEffect(() => {
         setIsPostLiked(!!item?.likedby?.[curruser]);
-        // getComments();
     }, [item?.likedby, curruser]);
-
-    useEffect(() => {
-        const commentsRef = collection(
-            db,
-            'posts',
-            item.postID,
-            'comments'
-        );
-
-        const q = query(commentsRef, orderBy('createdAt', 'desc'));
-
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-            const commentsData = await Promise.all(
-                snapshot.docs.map(async (commentDoc) => {
-                    const data = commentDoc.data();
-
-                    const userSnap = await getDoc(
-                        doc(db, 'users', data.userID)
-                    );
-
-                    return {
-                        id: commentDoc.id,
-                        comment: data.comment,
-                        userID: data.userID,
-                        createdAt: data.createdAt,
-                        username: userSnap.exists()
-                            ? userSnap.data().username
-                            : 'Unknown User',
-                        fullName: userSnap.exists()
-                            ? userSnap.data().fullname
-                            : 'Unknown User',
-                        pic: userSnap.exists()
-                            ? userSnap.data().image
-                            : null,
-                    };
-                })
-            );
-
-            setComments(commentsData);
-        });
-
-        return () => unsubscribe();
-    }, [item.postID]);
 
     const handleLike = async (pid) => {
         const userDocSnap = await getDoc(doc(db, 'posts', pid?.postID));
@@ -144,31 +139,39 @@ const Card = ({ item, curruser }) => {
 
     }
 
+    const accent = isDark ? '#06ec06' : '#00B341';
+    const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
+    const borderCol = isDark ? '#2E2E33' : '#E7E7ED';
+    const sheetBg = isDark ? '#1C1C1F' : '#FFFFFF';
+
     const styles = StyleSheet.create({
         outerContainer: {
-            backgroundColor: isDark ? '#717171ff' : '#d7d7d7',
-            width: '95%',
+            backgroundColor: cardBg,
+            width: '94%',
             alignSelf: 'center',
-            marginVertical: 5,
-            borderRadius: 8,
+            marginVertical: 6,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: borderCol,
+            overflow: 'hidden',
         },
         tagsStyles: {
             h1: {
-                fontSize: 24,
+                fontSize: 22,
                 textAlign: 'center',
-                fontFamily: 'Anaheim-SemiBold',
+                fontFamily: 'Anaheim-Bold',
                 marginTop: -5,
-                color: isDark ? '#fff' : '#000'
+                color: isDark ? '#F4F4F6' : '#17171B'
             },
             u: {
                 textDecorationLine: 'underline',
-                color: isDark ? '#fff' : '#000',
+                color: isDark ? '#F4F4F6' : '#17171B',
                 fontFamily: 'Anaheim-SemiBold',
                 marginTop: -5,
             },
             i: {
                 fontStyle: 'italic',
-                color: isDark ? '#fff' : '#000',
+                color: isDark ? '#F4F4F6' : '#17171B',
                 fontFamily: 'Anaheim-SemiBold',
                 marginTop: -5,
             },
@@ -177,32 +180,36 @@ const Card = ({ item, curruser }) => {
                 marginTop: -5,
             },
             li: {
-                color: isDark ? '#fff' : '#000',
+                color: isDark ? '#F4F4F6' : '#17171B',
                 marginTop: -5,
                 fontFamily: 'Anaheim-SemiBold',
             },
             div: {
                 fontFamily: 'Anaheim-SemiBold',
-                color: isDark ? '#fff' : '#000',
-                fontSize: 18,
-                paddingHorizontal: 5,
+                color: isDark ? '#F4F4F6' : '#17171B',
+                fontSize: 16,
+                paddingHorizontal: 0,
                 marginTop: -5,
             }
         },
         baseStyle: {
             ...Colour.fontColor,
-            paddingHorizontal: 13,
-            color: isDark ? '#fff' : '#000',
+            paddingHorizontal: 0,
+            color: isDark ? '#F4F4F6' : '#17171B',
             fontFamily: 'Anaheim-SemiBold',
+            lineHeight: 21,
         },
         commentEntry: {
-            backgroundColor: isDark ? '#474747ff' : "#bcbcbc",
+            backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
             borderWidth: 1,
+            borderColor: borderCol,
             width: '83%',
-            height: 40,
-            borderRadius: 10,
+            minHeight: 42,
+            borderRadius: 14,
+            paddingHorizontal: 14,
+            paddingTop: 10,
             fontFamily: 'Anaheim-Regular',
-            color: isDark ? '#fff' : '#000'
+            color: isDark ? '#F4F4F6' : '#17171B'
         },
         row: {
             flexDirection: 'row',
@@ -212,6 +219,25 @@ const Card = ({ item, curruser }) => {
         text: {
             fontFamily: 'Anaheim-SemiBold',
             fontSize: 15
+        },
+        actionPill: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+            borderRadius: 999,
+            backgroundColor: isDark ? '#232326' : '#F3F3F7',
+        },
+        sheetHandle: {
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: isDark ? '#3A3A40' : '#D8D8E0',
+            alignSelf: 'center',
+            marginTop: 10,
+        },
+        option: {
+            paddingVertical: 12,
         }
     });
 
@@ -252,30 +278,33 @@ const Card = ({ item, curruser }) => {
     const renderComments = ({ item }) => {
         console.log(item)
         return (
-            <Pressable onLongPress={() => { setIsCommentModalOption(true); setCommentID(item.id); setUserID(item.userID) }}
+            <Pressable onLongPress={() => { setIsCommentModalOption(true); setCommentID(item.id); setUserID(item.userID); }}
                 style={({ pressed }) => ({
-                    opacity: pressed ? 0.5 : 1,
-                    padding: pressed ? 5 : 0
+                    opacity: pressed ? 0.6 : 1,
+                    backgroundColor: pressed ? (isDark ? '#232326' : '#F3F3F7') : 'transparent',
+                    borderRadius: 12,
                 })}>
-                <View style={{ flexDirection: 'row', width: '100%', padding: 8, alignItems: 'center', }}>
-                    <View style={{ width: '12%' }}>
-                        <Image source={{ uri: item.pic }} style={{ height: 35, width: 35, borderRadius: 8, }} />
+                <View style={{ flexDirection: 'row', width: '100%', padding: 10, alignItems: 'center', }}>
+                    <View style={{ width: 38 }}>
+                        <Image source={{ uri: item.pic }} style={{ height: 36, width: 36, borderRadius: 10, }} />
                     </View>
 
-                    <View style={{ width: '80%' }}>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={[TEXT.usernametxt, { fontSize: 12 },]}>{item.username}</Text>
-                            <Text style={[TEXT.usernametxt, { fontSize: 12, color: isDark ? 'gray' : '#7b7b7b', fontFamily: 'Anaheim-SemiBold' },]}>{createdAt(item?.createdAt)}</Text>
+                            <Text numberOfLines={1} style={[TEXT.usernametxt, { fontSize: 13, paddingRight: 70, left: -13 }]}>
+                                {item.username}{' '}
+                                {item.verified && (
+                                    <MaterialIcons name="verified" size={13} color={isDark ? '#06ec06' : '#00B341'} />
+                                )}
+                            </Text>
+                            <Text style={{ fontSize: 11, color: isDark ? '#9A9AA5' : '#75758A', fontFamily: 'Anaheim-SemiBold', left: item?.editedAt ? -90 : 0 }}><Text>{item.editedAt ? '  (edited) ' : ''}</Text>{createdAt(item?.createdAt)}</Text>
                         </View>
-                        <Text style={[TEXT.usernametxt, { fontSize: 10 },]} >{item.fullName} </Text>
+                        <Text style={{ fontSize: 10, color: isDark ? '#9A9AA5' : '#75758A', fontFamily: 'Anaheim-SemiBold', marginBottom: 4 }} >{item.fullName}</Text>
+                        <Text style={{ fontFamily: 'Anaheim-Regular', color: isDark ? '#F4F4F6' : '#17171B', fontSize: 14 }}>
+                            {item.comment}
+                        </Text>
                     </View>
                 </View >
-
-                <View style={{ marginLeft: 10, marginBottom: 8, }} >
-                    <Text style={{ fontFamily: 'Anaheim-Regular', color: isDark ? '#fff' : '#000', }} > {item.comment} </Text>
-                </View>
-
-                <Divider style={{ height: 1, backgroundColor: isDark ? "#252525" : '#8a8a8a', width: '90%', alignSelf: 'center' }} />
             </Pressable >
         );
     };
@@ -289,41 +318,106 @@ const Card = ({ item, curruser }) => {
         }
     }
 
+    const handleReports = async () => {
+        try {
+            if (!commentid) return;
+            if (reportedCommentIds.includes(commentid)) return; // already reported
+
+            await addDoc(collection(db, 'Reports'), {
+                type: 'comment',
+                postID: item?.postID,
+                commentID: commentid,
+                reportedUserID: userid,
+                reportedByUserID: curruser,
+                createdAt: Date.now(),
+                status: 'pending',
+            });
+
+            setIsCommentModalOption(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    // Deletes the selected comment and decrements the post's comment count.
+    const handleDelete = async () => {
+        try {
+            if (!commentid) return;
+
+            const commentRef = doc(db, 'posts', item.postID, 'comments', commentid);
+            await deleteDoc(commentRef);
+
+            await updateDoc(doc(db, 'posts', item.postID), {
+                totcomments: increment(-1),
+            });
+
+            setIsCommentModalOption(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    // Opens the edit sheet pre-filled with the selected comment's current text.
+    const handleEdit = () => {
+        const target = comments.find((c) => c.id === commentid);
+        if (!target) return;
+
+        setEditCommentText(target.comment);
+        setIsCommentModalOption(false);
+        setIsEditModalVisible(true);
+    }
+
+    // Persists the edited comment text back to Firestore.
+    const updateComment = async () => {
+        try {
+            if (!editCommentText.trim() || !commentid) return;
+
+            const commentRef = doc(db, 'posts', item.postID, 'comments', commentid);
+            await updateDoc(commentRef, {
+                comment: editCommentText.trim(),
+                editedAt: Date.now(),
+            });
+
+            setEditCommentText('');
+            setIsEditModalVisible(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
     return (
-        <View style={styles.outerContainer}>
+        <View style={[styles.outerContainer, Colour.shadow]}>
             {/* HEADER */}
-            <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 5 }}>
+            <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
                 {/* PROFILE PIC */}
-                <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.userID)} style={{ flexDirection: 'row' }}>
-                    <View style={{ width: '14%' }}>
-                        <Image
-                            source={{ uri: image }}
-                            style={{ height: 45, width: 45, borderRadius: 8 }} />
-                    </View>
+                <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.userID)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Image
+                        source={
+                            image
+                                ? { uri: optimizeCloudinaryUrl(image, 100) }
+                                : require("../assets/images/user.png")
+                        }
+                        style={{ height: 44, width: 44, borderRadius: 12 }}
+                    />
 
                     {/* NAME */}
-                    <View style={{ width: '80%' }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <View style={{ flexDirection: 'row' }}>
-                                <Text style={[TEXT.usernametxt, { fontSize: 15 }]}>{username}</Text>
-                                {
-                                    item?.verified && (
-                                        <MaterialIcons name="verified" size={15} color={isDark ? "#06ec06ff" : '#00cc00ff'} style={{ marginLeft: '2%', marginTop: 5 }} />
-
-                                    )
-                                }
-                            </View>
-
-
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[TEXT.usernametxt, { fontSize: 15, paddingRight: 5, left: -14 }]} numberOfLines={1}>{username} </Text>
+                            {
+                                item?.verified && (
+                                    <MaterialIcons name="verified" size={14} color={accent} style={{ marginLeft: -20 }} />
+                                )
+                            }
                         </View>
-                        <Text style={[TEXT.usernametxt, { fontSize: 12 }]}>{fullName}</Text>
+                        <Text style={{ fontSize: 12, fontFamily: 'Anaheim-SemiBold', color: isDark ? '#9A9AA5' : '#75758A' }}>{fullName}</Text>
                     </View>
                 </TouchableOpacity>
 
                 {/* ACTION BUTTON */}
-                <View style={{ marginTop: '0.5%' }}>
-                    <TouchableOpacity onPress={() => setPopUpVisible(true)}>
-                        <Entypo name="dots-three-vertical" size={18} color={isDark ? '#fff' : '#000'} style={{ marginTop: '20%' }} />
+                <View>
+                    <TouchableOpacity onPress={() => setPopUpVisible(true)} style={{ padding: 6 }}>
+                        <Entypo name="dots-three-vertical" size={16} color={isDark ? '#9A9AA5' : '#75758A'} />
                     </TouchableOpacity>
                     <PopUp
                         id={125}
@@ -340,10 +434,7 @@ const Card = ({ item, curruser }) => {
             </View>
 
             {/* CONTENT */}
-            <View style={{ padding: 5, paddingHorizontal: 8 }}>
-                <Image
-                    source={{ uri: item?.image }}
-                    style={[styles.image, { height: (screenWidth * 0.9) * (item?.height / item?.width), borderRadius: 8, marginBottom: 5 }]} />
+            <View style={{ paddingHorizontal: 14, paddingBottom: 6 }}>
                 <RenderHtml
                     contentWidth={screenWidth}
                     source={{ html: `${item?.content}` }}
@@ -357,29 +448,26 @@ const Card = ({ item, curruser }) => {
                     ]}
                 />
             </View>
+            {
+                item?.image && (
+                    <Image
+                        source={{ uri: optimizeCloudinaryUrl(item.image, 800) }}
+                        style={{ width: '100%', height: screenWidth * (item?.height / item?.width), marginTop: 4 }} />
+                )
+            }
 
             {/* FOOTER */}
-            <View style={{ flexDirection: 'row', flex: 1, justifyContent: 'flex-end', gap: 10, marginHorizontal: 10, marginBottom: 5 }}>
-                <View id='likes'>
-                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }} onPress={() => handleLike(item)}>
-                        <Ionicons name="heart-circle" size={22}
-                            style={{ marginTop: '-2%' }}
-                            color={isPostLiked ? isDark ? "#06ec06ff" : "#00cc00ff" : isDark ? "#fff" : "#000"} />
-                        {/* <FontAwesome
-                            name={isPostLiked ? "heart" : "heart-o"}
-                            size={18}
-                            color={isPostLiked ? isDark ? "#06ec06ff" : "#00cc00ff" : "black"}
-                        /> */}
-                        <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#fff' : '#000', marginLeft: 5, marginRight: 10 }}>{item?.likes}</Text>
-                    </TouchableOpacity>
-                </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 12, marginVertical: 10 }}>
+                <TouchableOpacity style={styles.actionPill} onPress={() => handleLike(item)}>
+                    <Ionicons name={isPostLiked ? "heart" : "heart-outline"} size={18}
+                        color={isPostLiked ? '#F04452' : (isDark ? "#F4F4F6" : "#17171B")} />
+                    <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#F4F4F6' : '#17171B', marginLeft: 6, fontSize: 13 }}>{item?.likes}</Text>
+                </TouchableOpacity>
 
-                <View id='Comments'>
-                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center' }} onPress={() => setIsCommentModalVisible(true)}>
-                        <MaterialIcons name="comment" size={21} color={isDark ? "#fff" : "#000"} />
-                        <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#fff' : '#000', marginLeft: 5, marginRight: 10 }}>{item?.totcomments}</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity style={styles.actionPill} onPress={() => setIsCommentModalVisible(true)}>
+                    <Ionicons name="chatbubble-outline" size={16} color={isDark ? "#F4F4F6" : "#17171B"} />
+                    <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#F4F4F6' : '#17171B', marginLeft: 6, fontSize: 13 }}>{item?.totcomments}</Text>
+                </TouchableOpacity>
             </View>
 
             <Modal isVisible={iscommentmodalvisible}
@@ -387,11 +475,12 @@ const Card = ({ item, curruser }) => {
                 onBackButtonPress={() => setIsCommentModalVisible(false)}
                 onBackdropPress={() => setIsCommentModalVisible(false)}
                 hasBackdrop
-                style={{ justifyContent: 'flex-end', width: '98%', alignSelf: 'center', }} >
+                style={{ justifyContent: 'flex-end', margin: 0 }} >
 
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ backgroundColor: isDark ? '#474747ff' : "#bcbcbc", flex: 1, maxHeight: '80%', height: '80%', borderTopLeftRadius: 10, borderTopRightRadius: 10, bottom: -19 }}>
-                    <View style={{ alignItems: 'center', marginTop: 5 }}>
-                        <Text style={{ color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-Bold', fontSize: 25 }}>Comments</Text>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ backgroundColor: sheetBg, maxHeight: '82%', height: '82%', borderTopLeftRadius: 22, borderTopRightRadius: 22 }}>
+                    <View style={styles.sheetHandle} />
+                    <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 4 }}>
+                        <Text style={{ color: isDark ? '#F4F4F6' : '#17171B', fontFamily: 'Anaheim-Bold', fontSize: 18 }}>Comments</Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -399,11 +488,12 @@ const Card = ({ item, curruser }) => {
                             data={comments}
                             renderItem={renderComments}
                             keyExtractor={(item) => item.id}
-                            contentContainerStyle={{ paddingBottom: 10 }}
-                            style={{ height: '82%', width: '100%' }}
+                            contentContainerStyle={{ paddingBottom: 10, paddingHorizontal: 8 }}
+                            style={{ width: '100%' }}
                             ListEmptyComponent={() => (
-                                <View style={{ flex: 1, alignItems: 'center', marginTop: 200, }} >
-                                    <Text style={{ color: isDark ? '#aaa' : '#888', fontSize: 17, fontFamily: 'Anaheim-Bold', }} >No comments yet</Text>
+                                <View style={{ flex: 1, alignItems: 'center', marginTop: 100, }} >
+                                    <Ionicons name="chatbubble-ellipses-outline" size={32} color={isDark ? '#4a4a52' : '#c7c7d1'} />
+                                    <Text style={{ color: isDark ? '#9A9AA5' : '#75758A', fontSize: 15, fontFamily: 'Anaheim-Bold', marginTop: 8 }} >No comments yet</Text>
                                 </View>
                             )}
                         />
@@ -413,23 +503,24 @@ const Card = ({ item, curruser }) => {
                         style={{
                             flexDirection: 'row',
                             alignItems: 'flex-end',
-                            padding: 10,
+                            padding: 12,
                             borderTopWidth: 1,
-                            alignSelf: 'center',
                             justifyContent: 'center',
-                            borderTopColor: isDark ? '#333' : '#999',
+                            borderTopColor: borderCol,
                         }}
                     >
-                        <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 10 }}>
+                        <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 10, width: '100%', alignItems: 'flex-end' }}>
                             <TextInput
-                                placeholder='Your comments?'
+                                placeholder='Add a comment…'
                                 multiline
-                                placeholderTextColor={isDark ? '#acacacff' : '#7e7e7eff'}
+                                placeholderTextColor={isDark ? '#9A9AA5' : '#75758A'}
                                 value={currpostcomment}
                                 onChangeText={setCurrPostComment}
                                 style={styles.commentEntry} />
-                            <TouchableOpacity style={{ marginTop: 7, marginLeft: 10 }} onPress={() => postComment(item?.postID)} >
-                                <Ionicons name="send" size={22} color={isDark ? "#06ec06ff" : "#02ae02"} />
+                            <TouchableOpacity
+                                style={{ backgroundColor: accent, borderRadius: 999, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' }}
+                                onPress={() => postComment(item?.postID)} >
+                                <Ionicons name="send" size={18} color="#fff" />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -441,39 +532,104 @@ const Card = ({ item, curruser }) => {
                 onBackButtonPress={() => setIsCommentModalOption(false)}
                 onBackdropPress={() => setIsCommentModalOption(false)}
                 hasBackdrop
-                style={{ justifyContent: 'flex-end', width: '98%', alignSelf: 'center', }} >
-                <View style={{ backgroundColor: isDark ? '#474747ff' : "#bcbcbc", height: 'auto', minHeight: 60, borderTopLeftRadius: 10, borderTopRightRadius: 10, bottom: -19, padding: 15 }}>
-                    <TouchableOpacity onPress={() => navi.navigate('OtherProfile', { uid: userid })} style={[styles.option, { marginBottom: 15 }]} activeOpacity={0.7} >
-                        <View style={styles.row}>
-                            <FontAwesome name={'user'} size={22} color={isDark ? "#fff" : '#000'} />
-                            <Text style={[styles.text, { color: isDark ? "#fff" : '#000', }]} >View Profile</Text>
-                        </View>
-                    </TouchableOpacity>
-                    {
-                        userid == user.uid && (
-                            <>
-                                <TouchableOpacity style={[styles.option, { marginBottom: 15 }]} activeOpacity={0.7} >
+                style={{ justifyContent: 'flex-end', margin: 0 }} >
+                <View style={{ backgroundColor: sheetBg, height: 'auto', minHeight: 60, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 10 }}>
+                    <View style={styles.sheetHandle} />
+                    <View style={{ marginTop: 12 }}>
+                        <TouchableOpacity onPress={() => navi.navigate('OtherProfile', { uid: userid })} style={styles.option} activeOpacity={0.7} >
+                            <View style={styles.row}>
+                                <FontAwesome name={'user'} size={20} color={isDark ? "#F4F4F6" : '#17171B'} />
+                                <Text style={[styles.text, { color: isDark ? "#F4F4F6" : '#17171B', }]} >View Profile</Text>
+                            </View>
+                        </TouchableOpacity>
+                        {
+                            userid == user.uid && (
+                                <>
+                                    <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={handleEdit} >
+                                        <View style={styles.row}>
+                                            <MaterialIcons name="edit" size={20} color={isDark ? "#F4F4F6" : '#17171B'} />
+                                            <Text style={[styles.text, { color: isDark ? "#F4F4F6" : '#17171B', },]} >Edit</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={handleDelete} >
+                                        <View style={styles.row}>
+                                            <MaterialIcons name="delete" size={20} color="#F04452" />
+                                            <Text style={[styles.text, { color: '#F04452', },]} >Delete</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </>
+                            )
+                        }
+                        {
+                            userid != user.uid && (
+                                <TouchableOpacity
+                                    style={styles.option}
+                                    activeOpacity={0.7}
+                                    disabled={reportedCommentIds.includes(commentid)}
+                                    onPress={handleReports}
+                                >
                                     <View style={styles.row}>
-                                        <MaterialIcons name="edit" size={22} color={isDark ? "#fff" : '#000'} />
-                                        <Text style={[styles.text, { color: isDark ? "#fff" : '#000', },]} >Edit</Text>
+                                        <MaterialIcons
+                                            name="report"
+                                            size={20}
+                                            color={reportedCommentIds.includes(commentid) ? (isDark ? '#5b2727' : '#aa4848') : '#F04452'}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.text,
+                                                { color: reportedCommentIds.includes(commentid) ? (isDark ? '#5b2727' : '#aa4848') : '#F04452' },
+                                            ]}
+                                        >
+                                            {reportedCommentIds.includes(commentid) ? 'Reported' : 'Report'}
+                                        </Text>
                                     </View>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={[styles.option, { marginBottom: 15 }]} activeOpacity={0.7} >
-                                    <View style={styles.row}>
-                                        <MaterialIcons name="delete" size={22} color="#FF2F32" />
-                                        <Text style={[styles.text, { color: '#FF2F32', },]} >Delete</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            </>
-                        )
-                    }
-                    <TouchableOpacity style={[styles.option, { marginBottom: 15 }]} activeOpacity={0.7} >
-                        <View style={styles.row}>
-                            <MaterialIcons name="report" size={22} color="#FF2F32" />
-                            <Text style={[styles.text, { color: '#FF2F32', },]} >Report</Text>
-                        </View>
-                    </TouchableOpacity>
+                            )
+                        }
+                    </View>
                 </View>
+            </Modal>
+
+            {/* EDIT COMMENT SHEET */}
+            <Modal isVisible={iseditmodalvisible}
+                animationIn={'slideInUp'}
+                onBackButtonPress={() => setIsEditModalVisible(false)}
+                onBackdropPress={() => setIsEditModalVisible(false)}
+                hasBackdrop
+                style={{ justifyContent: 'flex-end', margin: 0 }} >
+
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ backgroundColor: sheetBg, borderTopLeftRadius: 22, borderTopRightRadius: 22 }}>
+                    <View style={styles.sheetHandle} />
+                    <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 4 }}>
+                        <Text style={{ color: isDark ? '#F4F4F6' : '#17171B', fontFamily: 'Anaheim-Bold', fontSize: 18 }}>Edit Comment</Text>
+                    </View>
+
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'flex-end',
+                            padding: 12,
+                            paddingBottom: 20,
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <View style={{ alignSelf: 'center', flexDirection: 'row', gap: 10, width: '100%', alignItems: 'flex-end' }}>
+                            <TextInput
+                                placeholder='Edit your comment…'
+                                multiline
+                                autoFocus
+                                placeholderTextColor={isDark ? '#9A9AA5' : '#75758A'}
+                                value={editCommentText}
+                                onChangeText={setEditCommentText}
+                                style={styles.commentEntry} />
+                            <TouchableOpacity
+                                style={{ backgroundColor: accent, borderRadius: 999, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' }}
+                                onPress={updateComment} >
+                                <Ionicons name="checkmark" size={20} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     )

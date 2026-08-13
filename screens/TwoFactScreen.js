@@ -4,10 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Switch } from "react-native-paper";
 import Modal from "react-native-modal";
+import { BlurView } from "@react-native-community/blur";
 
 import { useTheme } from "../utils/Theme";
 import Feather from "react-native-vector-icons/Feather";
-import Entypo from "react-native-vector-icons/Entypo";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
@@ -16,19 +16,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDoc, doc } from "firebase/firestore";
 
 const TwoFactScreen = () => {
-    const { isDark, TEXT, BUTTON } = useTheme();
+    const { isDark, TEXT } = useTheme();
     const navi = useNavigation();
     const user = auth.currentUser;
 
-    const buttoncard = isDark ? "#5c5c5cff" : "#d5d5d5ff";
+    // Same derived palette used across ProfileScreen / SettingsScreen / SecurityInfoScreen
+    const bg = isDark ? "#121214" : "#F7F7FA";
+    const cardBg = isDark ? "#1C1C1F" : "#FFFFFF";
+    const border = isDark ? "#2E2E33" : "#E7E7ED";
+    const fontcolor = isDark ? "#F4F4F6" : "#17171B";
+    const mutedcolor = isDark ? "#9A9AA5" : "#75758A";
+    const accent = isDark ? "#06ec06" : "#00B341";
+    const accentSoft = isDark ? "#173620" : "#E6F9EC";
 
     const [isSwitchOn, setIsSwitchOn] = useState(false);
     const [showMethodModal, setShowMethodModal] = useState(false);
     const [typeused, setTypeUsed] = useState('')
     const [showchangeauth, setShowChangeAuth] = useState('');
 
-    const radiuspin = useRef(new Animated.Value(8)).current;
-    const radiusfp = useRef(new Animated.Value(8)).current;
+    const radiuspin = useRef(new Animated.Value(14)).current;
+    const radiusfp = useRef(new Animated.Value(14)).current;
 
     const getSwitchState = async () => {
         try {
@@ -56,35 +63,81 @@ const TwoFactScreen = () => {
     );
 
     const styles = StyleSheet.create({
+        container: {
+            backgroundColor: bg,
+            flex: 1,
+        },
         header: {
             width: "100%",
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: "3%",
+            paddingHorizontal: "4%",
+            paddingBottom: 10,
             gap: 15
+        },
+        sectionLabel: {
+            fontFamily: "Anaheim-Bold",
+            fontSize: 15,
+            color: fontcolor,
+            marginHorizontal: 4,
+            marginBottom: 10,
+        },
+        card: {
+            backgroundColor: cardBg,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: border,
+            overflow: "hidden",
+        },
+        row: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            gap: 12,
+        },
+        iconCircle: {
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        rowText: {
+            flex: 1,
+            fontFamily: "Anaheim-SemiBold",
+            fontSize: 15,
+            color: fontcolor,
+        },
+        infoCard: {
+            width: "92%",
+            alignSelf: "center",
+            marginTop: 16,
+            backgroundColor: cardBg,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: border,
+            padding: 16,
+            gap: 10,
         },
         authButton: {
             alignItems: "center",
             justifyContent: "center",
-            borderWidth: 2,
-            borderRadius: 8,
-            width: 100,
-            height: 125
+            borderWidth: 1.5,
+            borderColor: border,
+            backgroundColor: isDark ? "#232326" : "#F3F3F7",
+            borderRadius: 16,
+            width: 110,
+            height: 130
         },
         authButtonText: {
-            color: isDark ? "#fff" : "#000",
+            color: fontcolor,
             fontFamily: "Anaheim-SemiBold",
-            top: 7
+            fontSize: 13,
+            marginTop: 10,
+            textAlign: 'center',
+            paddingHorizontal: 6,
         },
-        AuthType: {
-            width: "93%",
-            alignSelf: "center",
-            marginTop: 20,
-            gap: 3,
-            backgroundColor: buttoncard,
-            borderRadius: 8,
-            padding: 10
-        }
     });
 
     const onToggleSwitch = async (value) => {
@@ -140,7 +193,7 @@ const TwoFactScreen = () => {
     };
 
     const openEmail = async () => {
-        const email = 'nmanoj0212@gmail.com';
+        const email = 'develax2007@gmail.com';
 
         const body = `I am unable to access my account because I have forgotten my Two-Factor Authentication (2FA) PIN/code.
 
@@ -158,175 +211,131 @@ Best regards`;
     };
 
     return (
-        <SafeAreaView
-            style={{
-                backgroundColor: isDark ? "#252525" : "#f6f6f6",
-                flex: 1
-            }}
-        >
+        <SafeAreaView style={styles.container}>
             {/* HEADER */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navi.goBack()}>
-                    <Feather
-                        name="arrow-left"
-                        size={24}
-                        color={isDark ? "#fff" : "#000"}
-                    />
+                    <Feather name="arrow-left" size={24} color={fontcolor} />
                 </TouchableOpacity>
-                <Text style={[TEXT.heading]}>Authentication</Text>
+                <Text style={TEXT.heading}>Authentication</Text>
             </View>
 
-            <View style={{ width: "95%", alignSelf: "center" }}>
-                <View id="Authentication">
-                    <Text style={[TEXT.subheading, { fontSize: 19 }]}>
-                        Two factor Authentication
-                    </Text>
-                    <View
-                        style={{
-                            backgroundColor: buttoncard,
-                            width: "95%",
-                            padding: 5,
-                            alignSelf: "center",
-                            marginLeft: -10,
-                            borderRadius: 8,
-                            paddingVertical: 8
-                        }}
-                    >
-                        {/* ✅ Removed onPress from TouchableOpacity — was double-triggering
-                            alongside Switch's onValueChange */}
-                        <View
-                            style={{
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                                width: "95%",
-                                alignItems: "center",
-                                alignSelf: "center"
-                            }}
-                        >
-                            <Text style={[BUTTON.settingbtntxt]}>Turn On</Text>
-                            <Switch
-                                value={isSwitchOn}
-                                onValueChange={onToggleSwitch}
-                                color={isDark ? "#06ec06ff" : "#00cc00ff"}
-                            />
+            <View style={{ width: "92%", alignSelf: "center" }}>
+                <Text style={styles.sectionLabel}>Two factor authentication</Text>
+                <View style={styles.card}>
+                    <View style={styles.row}>
+                        <View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
+                            <MaterialIcons name="password" size={18} color={accent} />
                         </View>
+                        <Text style={styles.rowText}>Turn on</Text>
+                        <Switch
+                            value={isSwitchOn}
+                            onValueChange={onToggleSwitch}
+                            color={accent}
+                        />
                     </View>
                 </View>
             </View>
 
             {isSwitchOn && (
                 <>
-                    <View
-                        style={styles.AuthType}
-                    >
-                        {/* Auth Type Used here */}
-                        <Text style={{
-                            fontFamily: 'Anaheim-SemiBold',
-                            color: isDark ? '#fff' : '#000',
-                            fontSize: 15
-                        }}>Authentication Type used: <Text style={{
-                            fontFamily: 'Anaheim-Bold',
-                            color: isDark ? "#06ec06ff" : "#00cc00ff",
-                            fontSize: 17
-                        }}>{typeused.toUpperCase()}</Text></Text>
+                    <View style={styles.infoCard}>
+                        <Text style={{ fontFamily: 'Anaheim-SemiBold', color: fontcolor, fontSize: 15 }}>
+                            Authentication type used:{' '}
+                            <Text style={{ fontFamily: 'Anaheim-Bold', color: accent, fontSize: 16 }}>
+                                {typeused.toUpperCase()}
+                            </Text>
+                        </Text>
 
                         {typeused == 'pin' ?
-                            <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
-                                <Text style={{
-                                    fontFamily: 'Anaheim-SemiBold',
-                                    color: isDark ? '#d2d2d2' : '#000',
-                                    fontSize: 15
-                                }}>Forgot Two Authentication?</Text>
-                                <TouchableOpacity onPress={() => setShowChangeAuth(!showchangeauth)} style={{ flexDirection: 'row' }}>
-                                    <Text style={{
-                                        fontFamily: 'Anaheim-Bold',
-                                        color: isDark ? "#06ec06ff" : "#00cc00ff",
-                                        fontSize: 17
-                                    }}>Click Here</Text>
+                            <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <Text style={{ fontFamily: 'Anaheim-SemiBold', color: mutedcolor, fontSize: 14 }}>
+                                    Forgot your two-factor code?
+                                </Text>
+                                <TouchableOpacity onPress={() => setShowChangeAuth(!showchangeauth)}>
+                                    <Text style={{ fontFamily: 'Anaheim-Bold', color: accent, fontSize: 14 }}>
+                                        Click here
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                             :
                             null}
-
                     </View>
+
                     {
                         showchangeauth && (
                             <>
-                                <View
-                                    style={styles.AuthType}
-                                >
-                                    {/* Mail Heading */}
-                                    <Text style={{
-                                        fontFamily: 'Anaheim-SemiBold',
-                                        color: isDark ? '#d2d2d2' : '#464646',
-                                        fontSize: 15
-                                    }}>To Team Develax</Text>
-
-                                    {/* Forgot 2 fact auth */}
-                                    <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
-                                        <Text style={{
-                                            fontFamily: 'Anaheim-SemiBold',
-                                            color: isDark ? '#d2d2d2' : '#000',
-                                            fontSize: 15
-                                        }}>{`I am unable to access my account because I have forgotten my Two-Factor Authentication (2FA) PIN/code. I would like to request a reset or change of my 2FA settings so that I can regain access to my account.${'\n'}Thank you for your assistance. I look forward to your response.${'\n'}Thank you for your support.${'\n'}Best regards`}</Text>
-                                    </View>
+                                <View style={styles.infoCard}>
+                                    <Text style={{ fontFamily: 'Anaheim-SemiBold', color: mutedcolor, fontSize: 14 }}>
+                                        To Team Develax
+                                    </Text>
+                                    <Text style={{ fontFamily: 'Anaheim-SemiBold', color: fontcolor, fontSize: 14, lineHeight: 20 }}>
+                                        {`I am unable to access my account because I have forgotten my Two-Factor Authentication (2FA) PIN/code. I would like to request a reset or change of my 2FA settings so that I can regain access to my account.${'\n\n'}Thank you for your assistance. I look forward to your response.${'\n\n'}Best regards`}
+                                    </Text>
                                 </View>
-                                <View style={{ alignItems: 'center', top: '-3%' }}>
-                                    <TouchableOpacity onPress={openEmail} style={BUTTON.subbtn}>
-                                        <Text style={BUTTON.subbtntxt}>Send Mail</Text>
+                                <View style={{ alignItems: 'center', marginTop: 14 }}>
+                                    <TouchableOpacity
+                                        onPress={openEmail}
+                                        style={{ borderWidth: 1.5, borderColor: accent, paddingVertical: 10, width: '55%', borderRadius: 12, alignItems: 'center' }}>
+                                        <Text style={{ color: accent, fontSize: 15, fontFamily: 'Anaheim-Bold' }}>Send Mail</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
                         )
                     }
-
                 </>
-
             )}
 
             <Modal
                 isVisible={showMethodModal}
                 animationIn="slideInUp"
                 hasBackdrop
+                backdropOpacity={1}
+                customBackdrop={
+                    <BlurView style={{ flex: 1 }} blurType={isDark ? "dark" : "light"} blurAmount={5} reducedTransparencyFallbackColor="white" />
+                }
                 onBackButtonPress={() => setShowMethodModal(false)}
                 onBackdropPress={() => setShowMethodModal(false)}
                 style={{
                     justifyContent: "flex-end",
-                    top: "2%",
-                    alignItems: "center"
+                    margin: 0,
                 }}
             >
                 <View
                     style={{
-                        backgroundColor: isDark ? "#252525" : "#fefefe",
-                        width: "105%",
-                        height: 250,
-                        borderRadius: 12
+                        backgroundColor: cardBg,
+                        borderTopLeftRadius: 24,
+                        borderTopRightRadius: 24,
+                        borderWidth: 1,
+                        borderColor: border,
+                        paddingBottom: 28,
+                        paddingTop: 8,
                     }}
                 >
-                    <Text style={[TEXT.subheading, { paddingVertical: 10 }]}>
+                    <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: border, alignSelf: 'center', marginVertical: 10 }} />
+                    <Text style={[TEXT.subheading, { paddingHorizontal: 4 }]}>
                         Authentication Method
                     </Text>
                     <View
                         style={{
                             flexDirection: "row",
-                            justifyContent: "space-between",
+                            justifyContent: "center",
                             alignSelf: "center",
-                            gap: "20%",
-                            marginTop: "5%"
+                            gap: 20,
+                            marginTop: 16,
                         }}
                     >
                         <Pressable
                             onPressIn={() => {
                                 Animated.timing(radiuspin, {
-                                    toValue: 15,
+                                    toValue: 22,
                                     duration: 150,
                                     useNativeDriver: false
                                 }).start();
                             }}
                             onPressOut={() => {
                                 Animated.timing(radiuspin, {
-                                    toValue: 8,
+                                    toValue: 14,
                                     duration: 150,
                                     useNativeDriver: false
                                 }).start();
@@ -339,11 +348,9 @@ Best regards`;
                                     { borderRadius: radiuspin }
                                 ]}
                             >
-                                <MaterialIcons
-                                    name="password"
-                                    size={24}
-                                    color="gray"
-                                />
+                                <View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
+                                    <MaterialIcons name="password" size={20} color={accent} />
+                                </View>
                                 <Text style={styles.authButtonText}>PIN</Text>
                             </Animated.View>
                         </Pressable>
@@ -352,14 +359,14 @@ Best regards`;
                             onPress={null}
                             onPressIn={() => {
                                 Animated.timing(radiusfp, {
-                                    toValue: 15,
+                                    toValue: 22,
                                     duration: 150,
                                     useNativeDriver: false
                                 }).start();
                             }}
                             onPressOut={() => {
                                 Animated.timing(radiusfp, {
-                                    toValue: 8,
+                                    toValue: 14,
                                     duration: 150,
                                     useNativeDriver: false
                                 }).start();
@@ -368,16 +375,14 @@ Best regards`;
                             <Animated.View
                                 style={[
                                     styles.authButton,
-                                    { borderRadius: radiusfp }
+                                    { borderRadius: radiusfp, opacity: 0.6 }
                                 ]}
                             >
-                                <Ionicons
-                                    name="finger-print"
-                                    size={24}
-                                    color="gray"
-                                />
-                                <Text style={[styles.authButtonText, { textAlign: 'center' }]}>
-                                    {`Fingerprint (Coming Soon)`}
+                                <View style={[styles.iconCircle, { backgroundColor: isDark ? '#26262b' : '#eaeaef' }]}>
+                                    <Ionicons name="finger-print" size={20} color={mutedcolor} />
+                                </View>
+                                <Text style={styles.authButtonText}>
+                                    {`Fingerprint\n(Coming Soon)`}
                                 </Text>
                             </Animated.View>
                         </Pressable>
