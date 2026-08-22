@@ -8,12 +8,12 @@ import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDzywwaAKQUI3IwqyVK03-lNk2RFKSKnQM",
-  authDomain: "connect-9cd26.firebaseapp.com",
-  projectId: "connect-9cd26",
-  storageBucket: "connect-9cd26.firebasestorage.app",
-  messagingSenderId: "264923450484",
-  appId: "1:264923450484:web:e9767812d97fbe81fd5521",
+  apiKey: "AIzaS",
+  authDomain: "conne",
+  projectId: "con,
+  storageBucket: "connect-",
+  messagingSenderId: "2649",
+  appId: "1:26492321",
 };
 
 let auth;
