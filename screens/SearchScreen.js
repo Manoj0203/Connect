@@ -11,7 +11,7 @@ import auth, { db } from '../services/firebaseAuth';
 
 const SearchScreen = () => {
 
-    const { Colour, isDark, TEXT, TEXTINPUT } = useTheme();
+    const { Colour, isDark, TEXT, SPACING, RADIUS } = useTheme();
 
     const searchhistory = "SEARCH_HISTORY"
 
@@ -39,7 +39,16 @@ const SearchScreen = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: '5%'
-
+        },
+        usercard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: SPACING.md,
+            borderRadius: RADIUS.lg,
+            borderWidth: 1,
+            marginBottom: SPACING.md,
+            backgroundColor: Colour.card.backgroundColor,
+            borderColor: Colour.border
         }
     });
 
@@ -85,7 +94,7 @@ const SearchScreen = () => {
 
     const renderusers = ({ item, index }) => {
         return (
-            <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.uid)} style={{ backgroundColor: isDark ? '#15151581' : '#cecece', marginVertical: 5, height: 70, padding: 10, borderRadius: 8, flexDirection: 'row' }}>
+            <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.uid)} style={styles.usercard}>
                 <View style={{}}>
                     <Image
                         source={{ uri: item?.image }}

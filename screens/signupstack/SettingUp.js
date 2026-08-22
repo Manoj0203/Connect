@@ -2,6 +2,7 @@ import {
 	Text, KeyboardAvoidingView, Platform, ScrollView, TextInput, StyleSheet,
 	Image, TouchableOpacity, Alert, View, StatusBar, ActivityIndicator, Modal
 } from 'react-native'
+import AlertModal from '../../utils/AlertModal';
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../../utils/Theme'
@@ -17,15 +18,27 @@ import { useNavigation } from '@react-navigation/native';
 
 const SettingUp = () => {
 
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', singleButton: true, onConfirm: null, btnText: 'Okay' });
+    const showAlert = (title, message, buttons) => {
+        if (buttons && buttons.length > 1) {
+            const confirmBtn = buttons.find(b => b.text !== 'Cancel' && b.style !== 'cancel') || buttons[1];
+            setAlertConfig({ visible: true, title, message, singleButton: false, onConfirm: confirmBtn.onPress, btnText: confirmBtn.text || 'Okay' });
+        } else {
+            setAlertConfig({ visible: true, title, message, singleButton: true, onConfirm: null, btnText: 'Okay' });
+        }
+    };
+    const hideAlert = () => setAlertConfig(prev => ({ ...prev, visible: false }));
+
+
 	const { Colour, isDark, TEXTINPUT, PROFILEPIC, BUTTON, TEXT, RADIUS } = useTheme()
 	const [fullname, setFullName] = useState('')
 	const [bio, setBio] = useState('')
 	const [dob, setDOB] = useState('Date of Birth');
-	const defaultImageUri = Image.resolveAssetSource(require('../../assets/images/user.png')).uri;
-	const defaultImageUriobj = defaultImageUri
+	const user = auth.currentUser;
+	const defaultImageUri = user?.photoURL || Image.resolveAssetSource(require('../../assets/images/user.png')).uri;
 
 	const [showDatePicker, setShowDatePicker] = useState(false);
-	const [imageUri, setImageUri] = useState(defaultImageUriobj);
+	const [imageUri, setImageUri] = useState({ path: defaultImageUri, mime: 'image/jpeg' });
 	const [pro_pic, setPro_pic] = useState(false);
 	const [tempDate, setTempDate] = useState(null);
 
@@ -39,7 +52,7 @@ const SettingUp = () => {
 
 	// Calendar
 	const defaultPickerStyles = useDefaultStyles(isDark ? 'dark' : 'light');
-	const accentColor = isDark ? '#4fe24ac4' : '#06b100c4';
+	const accentColor = isDark ? '#06ec06' : '#00B341';
 	const accentSoft = isDark ? '#173620' : '#E6F9EC';
 	const border = isDark ? '#2E2E33' : '#E7E7ED';
 	const fontcolor = isDark ? '#F4F4F6' : '#17171B';
@@ -94,7 +107,7 @@ const SettingUp = () => {
 		} catch (error) {
 			if (error.code !== 'E_PICKER_CANCELLED') {
 				console.log('ImagePicker Error: ', error);
-				Alert.alert('Error', 'Failed to pick or crop image.');
+				showAlert('Error', 'Failed to pick or crop image.');
 			}
 		}
 	};
@@ -153,7 +166,7 @@ const SettingUp = () => {
 				fullname: fullname.trim(),
 				bio: bio.trim(),
 				dob: dob,
-				image: data?.secure_url ?? imageUri,
+				image: data?.secure_url ?? imageUri.path,
 				isSetupComplete: true,
 			};
 			const userDocRef = doc(db, 'users', user.uid);
@@ -177,12 +190,16 @@ const SettingUp = () => {
 			justifyContent: 'center',
 			alignItems: 'center',
 		},
-		formContainer: {
+		scrollContainer: {
 			flexGrow: 1,
 			justifyContent: 'center',
 			alignItems: 'center',
-			width: '85%',
+			width: '100%',
 			paddingVertical: 24,
+		},
+		formContainer: {
+			width: '85%',
+			alignItems: 'center',
 		},
 		headerText: {
 			marginBottom: 4,
@@ -238,7 +255,7 @@ const SettingUp = () => {
 		inputRow: {
 			flexDirection: 'row',
 			alignItems: 'center',
-			backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
+			backgroundColor: isDark ? '#1C1C1F' : '#EFEFF4',
 			borderRadius: RADIUS?.md ?? 12,
 			borderWidth: 1,
 			borderColor: border,
@@ -259,7 +276,7 @@ const SettingUp = () => {
 		bioRow: {
 			flexDirection: 'row',
 			alignItems: 'flex-start',
-			backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
+			backgroundColor: isDark ? '#1C1C1F' : '#EFEFF4',
 			borderRadius: RADIUS?.md ?? 12,
 			borderWidth: 1,
 			borderColor: border,
@@ -282,22 +299,23 @@ const SettingUp = () => {
 			fontFamily: "Anaheim-SemiBold",
 			fontSize: 12,
 		},
-		completeBtn: {
+		signupBtn: {
 			width: '100%',
 			backgroundColor: accentColor,
 			borderRadius: RADIUS?.md ?? 12,
 			paddingVertical: 14,
+			paddingHorizontal: 100,
 			alignItems: 'center',
 			justifyContent: 'center',
-			marginTop: 12,
+			marginTop: 6,
 			shadowColor: accentColor,
 			shadowOpacity: 0.25,
 			shadowRadius: 10,
 			shadowOffset: { width: 0, height: 4 },
 			elevation: 3,
 		},
-		completeBtnText: {
-			color: '#fff',
+		signupBtnText: {
+			color: isDark ? '#000' : '#fff',
 			fontFamily: 'Anaheim-Bold',
 			fontSize: 16,
 		},
@@ -347,87 +365,86 @@ const SettingUp = () => {
 				keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
 			>
 				<ScrollView
-					contentContainerStyle={styles.formContainer}
+					contentContainerStyle={styles.scrollContainer}
 					showsVerticalScrollIndicator={false}
 				>
-					<Text style={[TEXT?.heading, styles.headerText]}>Set up your profile</Text>
-					<Text style={styles.subtitle}>Tell us a bit about yourself to get started</Text>
+					<View style={styles.formContainer}>
+						<Text style={[TEXT?.heading, styles.headerText]}>Set up your profile</Text>
+						<Text style={styles.subtitle}>Tell us a bit about yourself to get started</Text>
 
-					<View style={styles.avatarWrap}>
-						<TouchableOpacity onPress={pickAndCropImage}>
-							<Image
-								source={{ uri: imageUri.path }}
-								style={styles.avatarImage} />
-							<View style={styles.avatarEditBadge}>
-								<Feather name="camera" size={14} color="#fff" />
+						<View style={styles.avatarWrap}>
+							<TouchableOpacity onPress={pickAndCropImage}>
+								<Image
+									source={{ uri: imageUri.path }}
+									style={styles.avatarImage} />
+								<View style={styles.avatarEditBadge}>
+									<Feather name="camera" size={14} color="#fff" />
+								</View>
+							</TouchableOpacity>
+							<Text style={styles.avatarHint}>Tap to change photo</Text>
+						</View>
+
+						<View style={styles.inputWrap}>
+							<Text style={styles.inputLabel}>Full name</Text>
+							<View style={styles.inputRow}>
+								<Feather name="user" size={18} color={mutedcolor} style={styles.inputIcon} />
+								<TextInput
+									placeholder='Enter fullname'
+									placeholderTextColor={placeholdercolor}
+									value={fullname}
+									onChangeText={setFullName}
+									textAlignVertical='top'
+									keyboardType='default'
+									maxLength={40}
+									style={styles.nameInput} />
 							</View>
-						</TouchableOpacity>
-						<Text style={styles.avatarHint}>Tap to change photo</Text>
-					</View>
-
-					<View style={styles.inputWrap}>
-						<Text style={styles.inputLabel}>Full name</Text>
-						<View style={styles.inputRow}>
-							<Feather name="user" size={18} color={mutedcolor} style={styles.inputIcon} />
-							<TextInput
-								placeholder='Enter fullname'
-								placeholderTextColor={placeholdercolor}
-								value={fullname}
-								onChangeText={setFullName}
-								textAlignVertical='top'
-								keyboardType='default'
-								maxLength={40}
-								style={styles.nameInput} />
 						</View>
-					</View>
 
-					<View style={styles.inputWrap}>
-						<Text style={styles.inputLabel}>Bio</Text>
-						<View style={styles.bioRow}>
-							<TextInput
-								style={styles.bioInput}
-								placeholder="Enter bio"
-								placeholderTextColor={placeholdercolor}
-								value={bio}
-								onChangeText={setBio}
-								textAlignVertical="top"
-								multiline
-								keyboardType="default"
-								maxLength={400} />
+						<View style={styles.inputWrap}>
+							<Text style={styles.inputLabel}>Bio</Text>
+							<View style={styles.bioRow}>
+								<TextInput
+									style={styles.bioInput}
+									placeholder="Enter bio"
+									placeholderTextColor={placeholdercolor}
+									value={bio}
+									onChangeText={setBio}
+									textAlignVertical="top"
+									multiline
+									keyboardType="default"
+									maxLength={400} />
+							</View>
+							<Text style={styles.lengthText}>{bio.length}/400</Text>
 						</View>
-						<Text style={styles.lengthText}>{bio.length}/400</Text>
-					</View>
 
-					<View style={styles.inputWrap}>
-						<Text style={styles.inputLabel}>Date of birth</Text>
-						<TouchableOpacity
-							style={styles.inputRow}
-							onPress={openDatePicker}
-						>
-							<MaterialCommunityIcons name="calendar-outline" size={18} color={mutedcolor} style={styles.inputIcon} />
+						<View style={[styles.inputWrap, { marginTop: -15, marginBottom: 30 }]}>
+							<Text style={styles.inputLabel}>Date of birth</Text>
+							<TouchableOpacity
+								style={[styles.inputRow, { paddingHorizontal: 100, }]}
+								onPress={openDatePicker}
+							>
+								<MaterialCommunityIcons name="calendar-outline" size={18} color={mutedcolor} style={styles.inputIcon} />
+								{
+									dob !== 'Date of Birth' ? (
+										<Text style={{ color: fontcolor, fontFamily: "Anaheim-SemiBold", fontSize: 15 }}>{dob}</Text>
+									) : (
+										<Text style={{ color: placeholdercolor, fontFamily: "Anaheim-SemiBold", fontSize: 15 }}>{dob}</Text>
+									)
+								}
+							</TouchableOpacity>
+						</View>
+
+						<TouchableOpacity disabled={loading} style={styles.signupBtn} onPress={handleProfileUpdate}>
 							{
-								dob !== 'Date of Birth' ? (
-									<Text style={{ color: fontcolor, fontFamily: "Anaheim-SemiBold", fontSize: 15 }}>{dob}</Text>
-								) : (
-									<Text style={{ color: placeholdercolor, fontFamily: "Anaheim-SemiBold", fontSize: 15 }}>{dob}</Text>
-								)
+								loading ?
+									<ActivityIndicator size={'large'} color={isDark ? '#000' : '#fff'} />
+									:
+									<Text style={styles.signupBtnText}>Complete Setup</Text>
 							}
 						</TouchableOpacity>
+
+						<View style={{ height: 50 }} />
 					</View>
-
-					<TouchableOpacity
-						style={styles.completeBtn}
-						onPress={handleProfileUpdate}
-						disabled={loading}
-					>
-						{loading ? (
-							<ActivityIndicator color={'#fff'} />
-						) : (
-							<Text style={styles.completeBtnText}>Complete Setup</Text>
-						)}
-					</TouchableOpacity>
-
-					<View style={{ height: 50 }} />
 				</ScrollView>
 			</KeyboardAvoidingView>
 
@@ -484,38 +501,45 @@ const SettingUp = () => {
 			</Modal>
 
 			{/* USERNAME NOT EXIST SNACK */}
-            <Snackbar
-                visible={fullnameexistsnakcvisible}
-                onDismiss={() => setFullNameExistSnackVisible(false)}
-                onclick={() => setFullNameExistSnackVisible(false)}
-                duration={3000}
-                wrapperStyle={{ position: 'absolute' }}
-                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
-                Enter fullname!
-            </Snackbar>
+			<Snackbar
+				visible={fullnameexistsnakcvisible}
+				onDismiss={() => setFullNameExistSnackVisible(false)}
+				onclick={() => setFullNameExistSnackVisible(false)}
+				duration={3000}
+				wrapperStyle={{ position: 'absolute' }}
+				sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+				Enter fullname!
+			</Snackbar>
 
-            {/* ENTER ALL FIELD SNACK */}
-            <Snackbar
-                visible={enterallfieldssnackvisible}
-                onDismiss={() => setEnterAllFieldsSnackVisible(false)}
-                onclick={() => setEnterAllFieldsSnackVisible(false)}
-                duration={3000}
-                wrapperStyle={{ position: 'absolute' }}
-                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
-                Enter all fields!
-            </Snackbar>
+			{/* ENTER ALL FIELD SNACK */}
+			<Snackbar
+				visible={enterallfieldssnackvisible}
+				onDismiss={() => setEnterAllFieldsSnackVisible(false)}
+				onclick={() => setEnterAllFieldsSnackVisible(false)}
+				duration={3000}
+				wrapperStyle={{ position: 'absolute' }}
+				sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+				Enter all fields!
+			</Snackbar>
 
-            {/* NO SPACE IN USERNAME SNACK */}
-            <Snackbar
-                visible={dobexistsnakcvisible}
-                onDismiss={() => setDOBExistSnackVisible(false)}
-                onclick={() => setDOBExistSnackVisible(false)}
-                duration={3000}
-                wrapperStyle={{ position: 'absolute' }}
-                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
-                Date of Birth required!
-            </Snackbar>
-		</SafeAreaView>
+			{/* NO SPACE IN USERNAME SNACK */}
+			<Snackbar
+				visible={dobexistsnakcvisible}
+				onDismiss={() => setDOBExistSnackVisible(false)}
+				onclick={() => setDOBExistSnackVisible(false)}
+				duration={3000}
+				wrapperStyle={{ position: 'absolute' }}
+				sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+				Date of Birth required!
+			</Snackbar>
+		
+            <AlertModal 
+                config={alertConfig} 
+                onClose={hideAlert} 
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
+                isDark={isDark} 
+            />
+        </SafeAreaView>
 	)
 }
 

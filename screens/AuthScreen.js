@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native'
+import AlertModal from '../utils/AlertModal';
 import React, { useEffect, useState, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../utils/Theme'
@@ -9,6 +10,18 @@ import emailjs from '@emailjs/react-native'
 import auth, { db } from '../services/firebaseAuth';
 
 const AuthScreen = () => {
+
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', singleButton: true, onConfirm: null, btnText: 'Okay' });
+    const showAlert = (title, message, buttons) => {
+        if (buttons && buttons.length > 1) {
+            const confirmBtn = buttons.find(b => b.text !== 'Cancel' && b.style !== 'cancel') || buttons[1];
+            setAlertConfig({ visible: true, title, message, singleButton: false, onConfirm: confirmBtn.onPress, btnText: confirmBtn.text || 'Okay' });
+        } else {
+            setAlertConfig({ visible: true, title, message, singleButton: true, onConfirm: null, btnText: 'Okay' });
+        }
+    };
+    const hideAlert = () => setAlertConfig(prev => ({ ...prev, visible: false }));
+
 
     const { Colour, isDark, TEXT, TEXTINPUT, BUTTON } = useTheme();
 
@@ -31,7 +44,7 @@ const AuthScreen = () => {
             const tdy = new Date();
 
             if (tdy.getDate() < docSnap.data().nextOTPTime && docSnap.data()?.otp) {
-                Alert.alert('Connect', 'OTP already sent. Please check your email.');
+                showAlert('Connect', 'OTP already sent. Please check your email.');
                 return;
             }
 
@@ -82,7 +95,7 @@ const AuthScreen = () => {
             navigate.replace('Tabs');
         }
         else {
-            Alert.alert('Connect', 'Invalid OTP. Please try again.');
+            showAlert('Connect', 'Invalid OTP. Please try again.');
         }
     }
 
@@ -108,6 +121,13 @@ const AuthScreen = () => {
                     <Text style={BUTTON.subbtntxt}>Back</Text>
                 </TouchableOpacity>
             </View>
+        
+            <AlertModal 
+                config={alertConfig} 
+                onClose={hideAlert} 
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
+                isDark={isDark} 
+            />
         </SafeAreaView>
     )
 }

@@ -21,6 +21,7 @@ const SecurityInfoScreen = () => {
 	const { isDark, TEXT } = useTheme();
 	const navi = useNavigation();
 	const user = auth.currentUser;
+	const isGoogleUser = user?.providerData?.some(provider => provider.providerId === 'google.com');
 
 	// Same derived palette used across ProfileScreen / SettingsScreen, so every screen reads as one product
 	const bg = isDark ? '#121214' : '#F7F7FA';
@@ -288,25 +289,33 @@ const SecurityInfoScreen = () => {
 				{/* SECURITY */}
 				<Text style={styles.sectionLabel}>Security</Text>
 				<View style={styles.card}>
-					{/* CHANGE EMAIL */}
-					<TouchableOpacity onPress={() => setChangeEmailModalVisible(true)} style={styles.row}>
-						<View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
-							<Ionicons name="mail-outline" size={18} color={accent} />
-						</View>
-						<Text style={styles.rowText}>Change email</Text>
-						<Feather name="chevron-right" size={18} color={mutedcolor} />
-					</TouchableOpacity>
-					<View style={styles.rowDivider} />
+					{!isGoogleUser ? (
+						<>
+							{/* CHANGE EMAIL */}
+							<TouchableOpacity onPress={() => setChangeEmailModalVisible(true)} style={styles.row}>
+								<View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
+									<Ionicons name="mail-outline" size={18} color={accent} />
+								</View>
+								<Text style={styles.rowText}>Change email</Text>
+								<Feather name="chevron-right" size={18} color={mutedcolor} />
+							</TouchableOpacity>
+							<View style={styles.rowDivider} />
 
-					{/* CHANGE PASSWORD */}
-					<TouchableOpacity onPress={() => setChangePasswordModalVisible(true)} style={styles.row}>
-						<View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
-							<Ionicons name="lock-closed-outline" size={18} color={accent} />
+							{/* CHANGE PASSWORD */}
+							<TouchableOpacity onPress={() => setChangePasswordModalVisible(true)} style={styles.row}>
+								<View style={[styles.iconCircle, { backgroundColor: accentSoft }]}>
+									<Ionicons name="lock-closed-outline" size={18} color={accent} />
+								</View>
+								<Text style={styles.rowText}>Change password</Text>
+								<Feather name="chevron-right" size={18} color={mutedcolor} />
+							</TouchableOpacity>
+							<View style={styles.rowDivider} />
+						</>
+					) : (
+						<View style={[styles.row, {paddingBottom: 4, paddingHorizontal: 14}]}>
+							<Text style={{color: mutedcolor, fontSize: 13, fontFamily: 'Anaheim-Regular'}}>Your email and password are managed securely by Google.</Text>
 						</View>
-						<Text style={styles.rowText}>Change password</Text>
-						<Feather name="chevron-right" size={18} color={mutedcolor} />
-					</TouchableOpacity>
-					<View style={styles.rowDivider} />
+					)}
 
 					{/* CHANGE PHONE NUMBER */}
 					<TouchableOpacity onPress={() => setChangePhoneNumber(true)} style={styles.row}>

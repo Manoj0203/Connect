@@ -92,6 +92,7 @@ export const useTheme = () => {
                 fontFamily: "Anaheim-Bold",
                 fontSize: 28,
                 letterSpacing: 0.2,
+                top:-3
             },
             subheading: {
                 color: text,

@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "264923450484-3pubqh1g1b4jhun6ctefgt022kmtjluf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.develax.connect",
+            "certificate_hash": "366373b5fde927b714da276f6f7e55bbde61b9c6"
+          }
+        },
+        {
+          "client_id": "264923450484-8mtqpb97v4evedi0v7ig3phrka2qvoil.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.develax.connect",
+            "certificate_hash": "1e8d8921a0e8868ef402c03ca7338059aeee7eb3"
+          }
+        },
+        {
           "client_id": "264923450484-r1vq08uh825spisdckt33fn866v7r776.apps.googleusercontent.com",
           "client_type": 3
         }

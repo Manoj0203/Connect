@@ -1,19 +1,34 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
-import React, { useState } from 'react'
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native'
+import AlertModal from '../utils/AlertModal';
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../utils/Theme'
 import Entypo from "react-native-vector-icons/Entypo";
 import Feather from "react-native-vector-icons/Feather";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from '@react-navigation/native';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import auth, { db } from '../services/firebaseAuth';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Snackbar } from 'react-native-paper';
 import Modal from 'react-native-modal'
-import AlertModal from '../utils/AlertModal';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 const LoginScreen = () => {
+
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', singleButton: true, onConfirm: null, btnText: 'Okay' });
+    const showAlert = (title, message, buttons) => {
+        if (buttons && buttons.length > 1) {
+            const confirmBtn = buttons.find(b => b.text !== 'Cancel' && b.style !== 'cancel') || buttons[1];
+            setAlertConfig({ visible: true, title, message, singleButton: false, onConfirm: confirmBtn.onPress, btnText: confirmBtn.text || 'Okay' });
+        } else {
+            setAlertConfig({ visible: true, title, message, singleButton: true, onConfirm: null, btnText: 'Okay' });
+        }
+    };
+    const hideAlert = () => setAlertConfig(prev => ({ ...prev, visible: false }));
+
     const { Colour, isDark, TEXT, TEXTINPUT, BUTTON, SPACING, RADIUS } = useTheme();
     const navigate = useNavigation();
 
@@ -39,7 +54,98 @@ const LoginScreen = () => {
 
     const [invalid, setInValidSnackVisible] = useState(false);
 
-    const BACKEND_URL = "https://connect-backend-pi.vercel.app/";
+    const BACKEND_URL = "https://connect-backend-hazel.vercel.app/";
+
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: '264923450484-r1vq08uh825spisdckt33fn866v7r776.apps.googleusercontent.com'
+        })
+    }, [])
+
+    async function onGoogleSignIn() {
+        try {
+            await GoogleSignin.hasPlayServices({
+                showPlayServicesUpdateDialog: true,
+            });
+
+            // Sign out first to force the account picker to appear
+            try {
+                await GoogleSignin.signOut();
+            } catch (e) {
+                // Ignore if not currently signed in
+            }
+
+            const signInResult = await GoogleSignin.signIn();
+
+            const email = signInResult?.user?.email || signInResult?.data?.user?.email;
+            if (email) {
+                const q = query(collection(db, 'users'), where('email', '==', email));
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) {
+                    await GoogleSignin.signOut();
+                    showAlert("Account Not Found", "You do not have an account yet. Please sign up.");
+                    navigate.replace('Signup');
+                    return;
+                }
+            }
+
+            // Support different package versions
+            const idToken =
+                signInResult?.idToken ||
+                signInResult?.data?.idToken;
+
+            if (!idToken) {
+                throw new Error('No ID token received from Google');
+            }
+
+            const credential =
+                GoogleAuthProvider.credential(idToken);
+
+            const userCredential = await signInWithCredential(
+                auth,
+                credential
+            );
+
+            const user = userCredential.user;
+            const docRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().twoFactorEnabled === true) {
+                if (docSnap.data().authMethod === 'pin') {
+                    navigate.navigate("SetupAuth", {
+                        mode: "verify",
+                        action: "disable",
+                        onSuccess: async () => {
+                            await AsyncStorage.setItem(`2fa_verified_${user.uid}`, 'true');
+                            navigate.replace('Tabs');
+                        },
+                        onFail: () => {
+                            null
+                        }
+                    });
+                }
+                return;
+            } else {
+                await AsyncStorage.setItem(`2fa_verified_${user.uid}`, 'true');
+                navigate.replace('Tabs');
+            }
+
+        } catch (error) {
+            console.log('Google Sign-In Error:', error);
+        }
+    }
+
+    const signOut = async () => {
+        try {
+            setErrorMessage('');
+
+            await GoogleSignin.signOut();
+            await auth.signOut();
+
+            navi.replace('Welcome');
+
+        } catch (error) {
+        }
+    };
 
     const handleLogin = async () => {
         signInWithEmailAndPassword(auth, email, password)
@@ -77,7 +183,7 @@ const LoginScreen = () => {
     const changeForgotPassword = async () => {
         try {
             if (!forgotemail || !forgotpin || !forgotpassword) {
-                Alert.alert("Error", "Fill all fields");
+                showAlert("Error", "Fill all fields");
                 return;
             }
             const response = await fetch(
@@ -98,14 +204,14 @@ const LoginScreen = () => {
             const result = await response.json();
 
             if (result.success) {
-                Alert.alert(
+                showAlert(
                     "Success",
                     "Password reset successfully"
                 );
 
                 // navigation.replace("Login");
             } else {
-                Alert.alert("Error", result.message);
+                showAlert("Error", result.message);
             }
         } catch (error) {
             console.log(error)
@@ -185,7 +291,7 @@ const LoginScreen = () => {
             elevation: 3,
         },
         loginBtnText: {
-            color: isDark?'#000':'#fff',
+            color: isDark ? '#000' : '#fff',
             fontFamily: 'Anaheim-Bold',
             fontSize: 16,
         },
@@ -296,6 +402,22 @@ const LoginScreen = () => {
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
+                            <Text style={styles.loginBtnText}>Login with Email</Text>
+                        </TouchableOpacity>
+
+                        <View style={{flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 24}}>
+                            <View style={{flex: 1, height: 1, backgroundColor: border}} />
+                            <Text style={{width: 50, textAlign: 'center', color: mutedcolor, fontFamily: 'Anaheim-SemiBold'}}>OR</Text>
+                            <View style={{flex: 1, height: 1, backgroundColor: border}} />
+                        </View>
+
+                        <TouchableOpacity onPress={onGoogleSignIn} style={[styles.loginBtn, { backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF', marginTop: 0, borderWidth: 1, borderColor: isDark ? '#2E2E33' : '#D8D8D8' }]}>
+                            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+                                <Image source={require('../assets/images/google.png')} style={{width: 22, height: 22, marginRight: 12}} />
+                                <Text style={[styles.loginBtnText, { color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-SemiBold' }]}>Sign in with Google</Text>
+                            </View>
+                        </TouchableOpacity>
 
                         {/* <View style={styles.forgotRow}>
                             <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 13.5 }}>Forgot password? </Text>
@@ -303,10 +425,6 @@ const LoginScreen = () => {
                                 <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13.5 }}>Click here</Text>
                             </TouchableOpacity>
                         </View> */}
-
-                        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-                            <Text style={styles.loginBtnText}>Login</Text>
-                        </TouchableOpacity>
 
                         <View style={styles.bottomRow}>
                             <Text style={styles.bottomText}>New user? </Text>
@@ -398,6 +516,13 @@ const LoginScreen = () => {
                 sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
                 Invalid credentials!
             </Snackbar>
+        
+            <AlertModal 
+                config={alertConfig} 
+                onClose={hideAlert} 
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
+                isDark={isDark} 
+            />
         </SafeAreaView>
     )
 }

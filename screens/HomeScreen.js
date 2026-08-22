@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../utils/Theme';
+import { getUserData } from '../utils/UserCache';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Card from '../utils/Card'
 
@@ -20,6 +21,7 @@ export default function HomeScreen() {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [posts, setPosts] = useState([]);
+	const [hasUnread, setHasUnread] = useState(false);
 
 	useEffect(() => {
 		if (!curruser) {
@@ -50,6 +52,47 @@ export default function HomeScreen() {
 		getPosts();
 	}, []);
 
+	useEffect(() => {
+		if (!curruser) return;
+		
+		// Listen for friend requests
+		const reqQ = collection(db, 'users', curruser.uid, 'Connect_RequestsRecieved');
+		const unsubReq = onSnapshot(reqQ, (snap) => {
+			if (!snap.empty) {
+				setHasUnread(true);
+			} else {
+				// Re-check rooms if reqs is empty
+				checkRooms();
+			}
+		});
+
+		// Listen for room invites
+		const roomsQ = query(collection(db, 'rooms'), where('invited', 'array-contains', curruser.uid));
+		const unsubRooms = onSnapshot(roomsQ, (snap) => {
+			if (!snap.empty) {
+				setHasUnread(true);
+			} else {
+				// Re-check reqs if rooms is empty
+				checkReqs();
+			}
+		});
+
+		const checkRooms = async () => {
+			const s = await getDocs(roomsQ);
+			if (s.empty) setHasUnread(false);
+		}
+		
+		const checkReqs = async () => {
+			const s = await getDocs(reqQ);
+			if (s.empty) setHasUnread(false);
+		}
+
+		return () => {
+			unsubReq();
+			unsubRooms();
+		};
+	}, [curruser]);
+
 	const getPosts = async (isRefresh = false) => {
 		if (isRefresh) setRefreshing(true);
 		
@@ -62,15 +105,15 @@ export default function HomeScreen() {
 				snapshot.docs.map(async (docSnap) => {
 					const post = docSnap.data();
 
-					const userSnap = await getDoc(doc(db, 'users', post.userID));
+					const userData = await getUserData(post.userID);
 
 					return {
 						...post,
 						postID: docSnap.id,
-						username: userSnap.exists() ? userSnap.data().username : 'Unknown',
-						fullName: userSnap.exists() ? userSnap.data().fullname : 'Unknown',
-						pic: userSnap.exists() ? userSnap.data().image : null,
-						verified: userSnap.exists() ? userSnap.data().isVerified : null,
+						username: userData ? userData.username : 'Unknown',
+						fullName: userData ? userData.fullname : 'Unknown',
+						pic: userData ? userData.image : null,
+						verified: userData ? userData.isVerified : null,
 					};
 				})
 			);
@@ -98,14 +141,14 @@ export default function HomeScreen() {
 			const myPostsData = await Promise.all(
 				snapshot.docs.map(async (docSnap) => {
 					const post = docSnap.data();
-					const userSnap = await getDoc(doc(db, 'users', post.userID));
+					const userData = await getUserData(post.userID);
 					return {
 						...post,
 						postID: docSnap.id,
-						username: userSnap.exists() ? userSnap.data().username : 'Unknown',
-						fullName: userSnap.exists() ? userSnap.data().fullname : 'Unknown',
-						pic: userSnap.exists() ? userSnap.data().image : null,
-						verified: userSnap.exists() ? userSnap.data().isVerified : null,
+						username: userData ? userData.username : 'Unknown',
+						fullName: userData ? userData.fullname : 'Unknown',
+						pic: userData ? userData.image : null,
+						verified: userData ? userData.isVerified : null,
 					};
 				})
 			);
@@ -146,7 +189,7 @@ export default function HomeScreen() {
 		headerIconBtn: {
 			width: 40,
 			height: 40,
-			borderRadius: 20,
+			borderRadius: 12,
 			alignItems: 'center',
 			justifyContent: 'center',
 			backgroundColor: isDark ? '#1C1C1F' : '#fff',
@@ -180,10 +223,15 @@ export default function HomeScreen() {
 			<View style={styles.header}>
 				{/* APP NAME */}
 				<Text style={TEXT.heading}>Connect</Text>
-				{/* IN - APP NOTIFICATION */}
-				<TouchableOpacity style={styles.headerIconBtn}>
-					<Ionicons name="heart-outline" size={20} color={isDark ? "#F4F4F6" : "#17171B"} />
-				</TouchableOpacity>
+				<View style={{flexDirection: 'row', alignItems: 'center'}}>
+					{/* IN - APP NOTIFICATION */}
+					<TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.navigate('Notifications')}>
+						<Ionicons name="heart-outline" size={20} color={isDark ? "#F4F4F6" : "#17171B"} />
+						{hasUnread && (
+							<View style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30' }} />
+						)}
+					</TouchableOpacity>
+				</View>
 			</View>
 			{
 				loading ?

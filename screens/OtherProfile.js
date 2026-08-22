@@ -1,10 +1,13 @@
-import { StyleSheet, Text, View, StatusBar, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, StatusBar, Image, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
+import AlertModal from '../utils/AlertModal';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addDoc, collection, deleteDoc, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, getDocs, writeBatch, arrayRemove } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, getDocs, writeBatch, arrayRemove, query, where } from 'firebase/firestore';
 import Feather from 'react-native-vector-icons/Feather';
+import { getUserData } from '../utils/UserCache';
 import { BlurView } from '@react-native-community/blur';
 import Modal from 'react-native-modal';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import auth from '../services/firebaseAuth'
@@ -14,6 +17,18 @@ import { useTheme } from '../utils/Theme'
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const OtherProfile = () => {
+
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', singleButton: true, onConfirm: null, btnText: 'Okay' });
+    const showAlert = (title, message, buttons) => {
+        if (buttons && buttons.length > 1) {
+            const confirmBtn = buttons.find(b => b.text !== 'Cancel' && b.style !== 'cancel') || buttons[1];
+            setAlertConfig({ visible: true, title, message, singleButton: false, onConfirm: confirmBtn.onPress, btnText: confirmBtn.text || 'Okay' });
+        } else {
+            setAlertConfig({ visible: true, title, message, singleButton: true, onConfirm: null, btnText: 'Okay' });
+        }
+    };
+    const hideAlert = () => setAlertConfig(prev => ({ ...prev, visible: false }));
+
 
     const { isDark, PROFILEPIC, TEXT, Colour } = useTheme();
 
@@ -31,6 +46,10 @@ const OtherProfile = () => {
     const [inFriends, setInFriends] = useState(false);
 
     const [isprofilevisible, setIsProfileVisible] = useState(false);
+    
+    const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
+    const [invitableRooms, setInvitableRooms] = useState([]);
+    const [loadingRooms, setLoadingRooms] = useState(false);
 
     const bg = isDark ? '#121214' : '#F7F7FA';
     const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
@@ -40,30 +59,25 @@ const OtherProfile = () => {
     const accent = isDark ? '#cdcdcd' : '#000000';
     const accentSoft = isDark ? '#232323' : '#E6F9EC';
 
+    const BACKEND_URL = "https://connect-backend-hazel.vercel.app/"; // Update to your physical device IP if localhost fails
+
     const navi = useNavigation();
 
     const user = auth.currentUser;
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
-                const userDocRef = doc(db, 'users', uid);
-
-                const docSnap = await getDoc(userDocRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-
-                    if (data.image) {
-                        setImageUri(data.image);
+                const userData = await getUserData(uid);
+                if (userData) {
+                    setValue(userData);
+                    if (userData.image) {
+                        setImageUri(userData.image);
                     }
-                    else {
-                        console.log('Error')
-                    }
-                    setValue(data);
+                } else {
+                    console.log("No such document!");
                 }
-            }
-            catch (e) {
-                console.error("Error fetching profile: ", e);
+            } catch (error) {
+                console.log(error);
             }
         };
 
@@ -117,11 +131,14 @@ const OtherProfile = () => {
         try {
             setFriendsRequestSent(true);
 
-            const fromname = (await getDoc(doc(db, 'users', curruser.uid))).data().fullname;
-            const fromusername = (await getDoc(doc(db, 'users', curruser.uid))).data().username;
-            const toname = (await getDoc(doc(db, 'users', uid))).data().fullname;
+            const currUserData = await getUserData(curruser.uid);
+            const otherUserData = await getUserData(uid);
+            
+            const fromname = currUserData?.fullname;
+            const fromusername = currUserData?.username;
+            const toname = otherUserData?.fullname;
             const time = serverTimestamp();
-            const fromprofile = (await getDoc(doc(db, 'users', curruser.uid))).data().image;
+            const fromprofile = currUserData?.image;
 
             await setDoc(doc(db, 'users', curruser.uid, 'Connect_RequestsSent', uid), {
                 from: curruser.uid,
@@ -162,6 +179,71 @@ const OtherProfile = () => {
             console.log(e);
         }
     }
+
+                const stringToColor = (string) => {
+        const PREDEFINED_COLORS = [
+            '#00796B', // Dark Teal
+            '#0288D1', // Dark Light Blue
+            '#1976D2', // Dark Blue
+            '#303F9F', // Dark Indigo
+            '#512DA8', // Dark Deep Purple
+            '#7B1FA2', // Dark Purple
+            '#F57C00', // Dark Orange
+            '#E64A19', // Dark Deep Orange
+            '#5D4037', // Dark Brown
+            '#455A64', // Dark Blue Grey
+        ];
+        if (!string) return PREDEFINED_COLORS[0];
+        let hash = 0;
+        for (let i = 0; i < string.length; i++) {
+            hash = string.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % PREDEFINED_COLORS.length;
+        return PREDEFINED_COLORS[index];
+    };
+
+    const handleOpenInvite = async () => {
+        setIsInviteModalVisible(true);
+        setLoadingRooms(true);
+        try {
+            const roomsRef = collection(db, 'rooms');
+            const q = query(roomsRef, where('members', 'array-contains', curruser.uid));
+            const snapshot = await getDocs(q);
+            const r = [];
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                if (data.owner === curruser.uid || (data.admins && data.admins.includes(curruser.uid))) {
+                    r.push({ id: docSnap.id, ...data });
+                }
+            });
+            setInvitableRooms(r);
+        } catch (e) {
+            console.log(e);
+        } finally {
+            setLoadingRooms(false);
+        }
+    };
+
+    const handleInviteSubmit = async (room) => {
+        try {
+            const token = await curruser.getIdToken();
+            const res = await fetch(`${BACKEND_URL}inviteUserToRoom`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ roomId: room.id, targetUid: uid })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert("Success", "Successfully invited user to " + room.name);
+                setIsInviteModalVisible(false);
+            } else {
+                showAlert("Error", data.message);
+            }
+        } catch (e) {
+            console.log(e);
+            showAlert("Error", "Action failed.");
+        }
+    };
 
 
     const styles = StyleSheet.create({
@@ -223,7 +305,10 @@ const OtherProfile = () => {
                 <TouchableOpacity onPress={() => navi.goBack()}>
                     <Feather name="arrow-left" size={22} color={fontcolor} />
                 </TouchableOpacity>
-                <Text style={[TEXT.heading, { fontSize: 20 }]}>{value?.username ?? 'Unknown user'}</Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <Text style={[TEXT.heading, { fontSize: 20, }]}>{value?.username ?? 'Unknown user'} </Text>
+                    {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} style={{marginLeft: 2, marginTop: -2}}/>}
+                </View>
             </View>
 
             <ScrollView style={{ width: '100%', marginTop: 14 }} showsVerticalScrollIndicator={false}>
@@ -279,6 +364,9 @@ const OtherProfile = () => {
                         <TouchableOpacity onPress={() => setIsProfileVisible(true)} style={styles.actionBtn}>
                             <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>Profile Card</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity onPress={handleOpenInvite} style={styles.actionBtn}>
+                            <Text style={{ color: accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>Invite to Room</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
                 <View style={{ height: 30 }} />
@@ -308,7 +396,10 @@ const OtherProfile = () => {
                             source={{ uri: imageUri }}
                             style={{ height: 88, width: 88, borderRadius: 24, borderWidth: 3, borderColor: cardBg, marginTop: -60 }}
                         />
-                        <Text style={[TEXT.usernametxt, { fontSize: 19, textAlign: 'center', marginTop: 12, marginLeft: 0 }]}>{value?.fullname}</Text>
+                        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 12}}>
+                            <Text style={[TEXT.usernametxt, { fontSize: 19, textAlign: 'center', marginLeft: 0 }]}>{value?.fullname} </Text>
+                            {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} />}
+                        </View>
                         <Text style={{ color: accent, fontFamily: 'Anaheim-SemiBold', fontSize: 14 }}>{"@" + value?.username}</Text>
                         <Text numberOfLines={3} style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 13, textAlign: 'center', marginTop: 6 }}>{value?.bio}</Text>
                     </View>
@@ -343,6 +434,70 @@ const OtherProfile = () => {
                     <Text style={[TEXT.neonText, { fontSize: 25, textAlign: 'center' }]}>{value?.neotext ? value?.neotext.trim() : ''}</Text>
                 </View>
             </Modal>
+
+            {/* Invite Modal */}
+            <Modal
+                isVisible={isInviteModalVisible}
+                onBackButtonPress={() => setIsInviteModalVisible(false)}
+                onBackdropPress={() => setIsInviteModalVisible(false)}
+                style={{ justifyContent: 'flex-end', margin: 0 }}
+            >
+                <View style={{ backgroundColor: cardBg, padding: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%', paddingBottom: 50 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <Text style={{ fontFamily: 'Anaheim-Bold', color: fontcolor, fontSize: 20 }}>Invite to Room</Text>
+                        <TouchableOpacity onPress={() => setIsInviteModalVisible(false)} style={{ padding: 4, backgroundColor: isDark ? '#2E2E33' : '#E7E7ED', borderRadius: 20 }}>
+                            <Feather name="x" size={20} color={fontcolor} />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {loadingRooms ? (
+                        <Text style={{ color: mutedcolor, textAlign: 'center', marginTop: 40, fontFamily: 'Anaheim-SemiBold' }}>Loading your rooms...</Text>
+                    ) : invitableRooms.length === 0 ? (
+                        <Text style={{ color: mutedcolor, textAlign: 'center', marginTop: 40, fontFamily: 'Anaheim-SemiBold' }}>No eligible rooms found where you are an Admin or Owner.</Text>
+                    ) : (
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {invitableRooms.map(room => {
+                                const mCount = room.members ? room.members.length : 0;
+                                return (
+                                <View 
+                                    key={room.id} 
+                                    style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: stringToColor(room.id), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                            {room.groupPic ? (
+                                                <Image source={{ uri: room.groupPic }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                                            ) : (
+                                                <Ionicons name="chatbubbles" size={20} color={'#fff'} />
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }} numberOfLines={1}>{room.name}</Text>
+                                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 13 }}>{mCount} member{mCount !== 1 ? 's' : ''}</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity 
+                                        style={{ backgroundColor: mCount >= 20 ? (isDark ? '#2E2E33' : '#E7E7ED') : accentSoft, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, marginLeft: 10 }}
+                                        onPress={() => handleInviteSubmit(room)}
+                                        disabled={mCount >= 20}
+                                    >
+                                        <Text style={{ color: mCount >= 20 ? mutedcolor : accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>
+                                            {mCount >= 20 ? 'Full' : 'Invite'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )})}
+                        </ScrollView>
+                    )}
+                </View>
+            </Modal>
+        
+            <AlertModal 
+                config={alertConfig} 
+                onClose={hideAlert} 
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
+                isDark={isDark} 
+            />
         </SafeAreaView>
     )
 }

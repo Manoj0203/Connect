@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, StatusBar, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../../utils/Theme'
@@ -6,9 +6,10 @@ import Entypo from "react-native-vector-icons/Entypo";
 import Feather from "react-native-vector-icons/Feather";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from '@react-navigation/native';
-import { createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import auth, { db } from '../../services/firebaseAuth';
-import { setDoc, doc, query, collection, where, getDocs, getFirestore } from 'firebase/firestore';
+import { setDoc, doc, query, collection, where, getDocs, getFirestore, getDoc } from 'firebase/firestore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Snackbar } from 'react-native-paper';
 
 const SignupScreen = () => {
@@ -33,8 +34,88 @@ const SignupScreen = () => {
     // SnackBars
     const [usernameexistsnakcvisible, setUserNameExistSnackVisible] = useState(false);
     const [enterallfieldssnackvisible, setEnterAllFieldsSnackVisible] = useState(false);
+    const [usernamerequiredsnackvisible, setUsernameRequiredSnackVisible] = useState(false);
     const [nospaceinusernamesnackvisible, setNoSpaceInUsernameSnackVisible] = useState(false);
     const [passwordlengthsnackvisible, setPasswordLengthSnackVisible] = useState(false);
+
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: '264923450484-r1vq08uh825spisdckt33fn866v7r776.apps.googleusercontent.com'
+        })
+    }, [])
+
+    const handleGoogleSignUp = async () => {
+        if (!username.trim()) {
+            setUsernameRequiredSnackVisible(true);
+            return;
+        }
+        const lst = username.split(' ');
+        if (lst.length >= 2) {
+            setNoSpaceInUsernameSnackVisible(true);
+            return;
+        }
+        setIsLoading(true);
+        setActiveSignUpButton(true);
+
+        try {
+            const db = getFirestore();
+            const q = query(collection(db, "users"), where("username", "==", username.toLowerCase()));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                setUserNameExistSnackVisible(true);
+                setIsLoading(false);
+                setActiveSignUpButton(false);
+                return;
+            }
+
+            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+            try { await GoogleSignin.signOut(); } catch (e) {}
+
+            const signInResult = await GoogleSignin.signIn();
+            const idToken = signInResult?.idToken || signInResult?.data?.idToken;
+            
+            if (!idToken) throw new Error('No ID token received');
+            const credential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, credential);
+            const user = userCredential.user;
+
+            const docRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) {
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    username: username.toLowerCase(),
+                    email: user.email,
+                    post: 0,
+                    friends: 0,
+                    requests: 0,
+                    createdAt: new Date(),
+                    isVerified: false,
+                    postliked: {},
+                    phone_number: "",
+                    otp: 0,
+                    otpVerified: false,
+                    authentication: false,
+                    nextOTPTime: 0,
+                    neotext: "",
+                    isSetupComplete: false,
+                    familyID: null,
+                });
+                navigate.replace("SettingUp");
+            } else {
+                if (docSnap.data().isSetupComplete === false) {
+                    navigate.replace("SettingUp");
+                } else {
+                    navigate.replace("Tabs");
+                }
+            }
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setIsLoading(false);
+            setActiveSignUpButton(false);
+        }
+    }
 
     const handlesignup = async () => {
         setIsLoading(true);
@@ -152,6 +233,7 @@ const SignupScreen = () => {
             fontSize: 12.5,
             marginBottom: 6,
             marginLeft: 4,
+            marginVertical: -5
         },
         inputRow: {
             flexDirection: 'row',
@@ -226,17 +308,36 @@ const SignupScreen = () => {
                         <Text style={styles.subtitle}>Sign up to get started</Text>
 
                         <View style={styles.inputWrap}>
-                            <Text style={styles.inputLabel}>Username</Text>
+                            <Text style={styles.inputLabel}>Username <Text style={{color: '#ff4747'}}>*</Text></Text>
                             <View style={styles.inputRow}>
                                 <Feather name="user" size={18} color={mutedcolor} style={styles.inputIcon} />
                                 <TextInput
-                                    placeholder='Username'
+                                    placeholder='Choose a unique username'
                                     placeholderTextColor={placeholdercolor}
                                     style={styles.textInput}
                                     autoCapitalize='none'
                                     value={username}
                                     onChangeText={setUsername} />
                             </View>
+                            <Text style={{color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 12, marginTop: 4, marginLeft: 4}}>Required for both Google and Email sign up.</Text>
+                        </View>
+
+                        <TouchableOpacity disabled={activesignupbtn} onPress={handleGoogleSignUp} style={[styles.signupBtn, { backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF', marginTop: 10, borderWidth: 1, borderColor: isDark ? '#2E2E33' : '#D8D8D8' }]}>
+                            {
+                                isLoading ?
+                                    <ActivityIndicator size={'large'} color={isDark ? '#fff' : '#000'} />
+                                    :
+                                    <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+                                        <Image source={require('../../assets/images/google.png')} style={{width: 22, height: 22, marginRight: 12}} />
+                                        <Text style={[styles.signupBtnText, { color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-SemiBold' }]}>Sign up with Google</Text>
+                                    </View>
+                            }
+                        </TouchableOpacity>
+
+                        <View style={{flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 24}}>
+                            <View style={{flex: 1, height: 1, backgroundColor: border}} />
+                            <Text style={{width: 50, textAlign: 'center', color: mutedcolor, fontFamily: 'Anaheim-SemiBold'}}>OR</Text>
+                            <View style={{flex: 1, height: 1, backgroundColor: border}} />
                         </View>
 
                         <View style={styles.inputWrap}>
@@ -278,14 +379,14 @@ const SignupScreen = () => {
                         <TouchableOpacity disabled={activesignupbtn} style={styles.signupBtn} onPress={handlesignup}>
                             {
                                 isLoading ?
-                                    <ActivityIndicator size={'large'} color={accent} />
+                                    <ActivityIndicator size={'large'} color={isDark ? '#000' : '#fff'} />
                                     :
-                                    <Text style={styles.signupBtnText}>Sign up</Text>
+                                    <Text style={styles.signupBtnText}>Sign up with Email</Text>
                             }
                         </TouchableOpacity>
 
                         <View style={styles.bottomRow}>
-                            <Text style={styles.bottomText}>Already have account? </Text>
+                            <Text style={styles.bottomText}>Already have an account? </Text>
                             <TouchableOpacity onPress={() => navigate.replace('Login')}>
                                 <Text style={styles.bottomLink}>Login</Text>
                             </TouchableOpacity>
@@ -337,6 +438,17 @@ const SignupScreen = () => {
                 style={{ height: 'auto' }}
                 sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
                 Password should be at least 6 characters long!
+            </Snackbar>
+
+            {/* USERNAME REQUIRED SNACK */}
+            <Snackbar
+                visible={usernamerequiredsnackvisible}
+                onDismiss={() => setUsernameRequiredSnackVisible(false)}
+                onclick={() => setUsernameRequiredSnackVisible(false)}
+                duration={3000}
+                wrapperStyle={{ position: 'absolute' }}
+                sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}>
+                Please enter a username first!
             </Snackbar>
         </SafeAreaView>
     )

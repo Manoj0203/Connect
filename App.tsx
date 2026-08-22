@@ -27,6 +27,12 @@ import OtherProfile from './screens/OtherProfile';
 import SetupAuth from './screens/SetupAuth';
 import PrivacyScreen from './screens/PrivacyScreen';
 import HelpScreen from './screens/HelpScreen';
+import MaintenanceScreen from './screens/MaintenanceScreen';
+import CreatePost from './screens/CreatePost';
+import CreateRoomScreen from './screens/CreateRoomScreen';
+import RoomDetailScreen from './screens/RoomDetailScreen';
+import RoomAboutScreen from './screens/RoomAboutScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 
 import { PaperProvider } from 'react-native-paper';
 import { useEffect } from 'react';
@@ -82,6 +88,12 @@ export default function App() {
           <Stack.Screen name="SetupAuth" component={SetupAuth} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} />
           <Stack.Screen name="Help" component={HelpScreen} />
+          <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
+          <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+          <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
+          <Stack.Screen name="RoomAbout" component={RoomAboutScreen} />
+          <Stack.Screen name="CreatePost" component={CreatePost} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

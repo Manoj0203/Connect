@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, StatusBar, Image, TouchableOpacity, FlatList, Pressable, ScrollView, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore';
+import { getUserData } from '../utils/UserCache';
 import Modal from 'react-native-modal'
 import { BlurView } from '@react-native-community/blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,13 +52,9 @@ const ProfileScreen = () => {
 		}
 
 		try {
-			const userDocRef = doc(db, 'users', user.uid);
+			const data = await getUserData(user.uid);
 
-			const docSnap = await getDoc(userDocRef);
-
-			if (docSnap.exists()) {
-				const data = docSnap.data();
-
+			if (data) {
 				if (data.image) {
 					setImageUri(optimizeCloudinaryUrl(data.image, 150));
 				}
@@ -72,98 +69,15 @@ const ProfileScreen = () => {
 		}
 	};
 
-	const getPendingRequests_friends = async () => {
-		try {
-			let dumallreq = [];
-
-			const frndsReqQuery = query(collection(db, 'users', user.uid, 'Connect_RequestsRecieved'), orderBy('time', 'asc'));
-			const frndsReqSnap = await getDocs(frndsReqQuery);
-			frndsReqSnap.docs.map((docs) => {
-				dumallreq.push({
-					fromname: docs.data().fromname,
-					fromprofile: optimizeCloudinaryUrl(docs.data().fromprofile, 50),
-					time: docs.data().time,
-					fromusername: docs.data().fromusername,
-					toID: docs.data().from,
-				});
-			})
-			setAllReq_friends(dumallreq)
-		}
-		catch (e) {
-			console.log(e)
-		}
-	}
-
 	const loadData = async (isRefresh = false) => {
 		if (isRefresh) setRefreshing(true);
 		await fetchProfileData();
-		await getPendingRequests_friends();
 		if (isRefresh) setRefreshing(false);
 	}
 
 	useEffect(() => {
 		loadData();
 	}, [user]);
-
-	const acceptfrndrequest = async (id) => {
-		try {
-			batch.delete(doc(db, 'users', user.uid, 'Connect_RequestsRecieved', id));
-			batch.delete(doc(db, 'users', id, 'Connect_RequestsSent', user.uid));
-			batch.update(doc(db, 'users', id), {
-				requests: increment(-1),
-				friends: increment(1),
-				friendslist: arrayUnion(user.uid),
-			})
-			batch.update(doc(db, 'users', user.uid), {
-				friends: increment(1),
-				friendslist: arrayUnion(id),
-			})
-
-			await batch.commit();
-		} catch (error) {
-			console.log(error)
-		}
-	}
-
-	const declinefrndrequest = async (id) => {
-		try {
-			batch.delete(doc(db, 'users', user.uid, 'Connect_RequestsRecieved', id));
-			batch.delete(doc(db, 'users', id, 'Connect_RequestsSent', user.uid));
-			batch.update(doc(db, 'users', id), {
-				requests: increment(-1),
-			})
-
-			await batch.commit()
-		}
-		catch (error) {
-			console.log(error);
-		}
-	}
-
-	const renderRequestPending_friends = ({ item, index }) => {
-		return (
-			<View style={styles.requestCard}>
-				<TouchableOpacity onPress={() => navi.navigate('OtherProfile', { uid: item?.toID })} style={{ flexDirection: 'row', flex: 1, alignItems: 'center' }}>
-					<Image
-						source={{ uri: item?.fromprofile }}
-						style={{ width: 44, height: 44, borderRadius: 12 }} />
-					<View style={{ flex: 1, marginLeft: 10 }}>
-						<Text style={{ color: fontcolor, fontFamily: "Anaheim-Bold", fontSize: 14 }} numberOfLines={1}>{item?.fromusername}</Text>
-						<Text style={{ color: mutedcolor, fontFamily: "Anaheim-Regular", fontSize: 12 }} numberOfLines={1}>{item?.fromname}</Text>
-					</View>
-				</TouchableOpacity>
-				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-					<TouchableOpacity onPress={() => acceptfrndrequest(item?.toID)} style={[styles.iconCircle, { backgroundColor: '#22C55E22' }]}>
-						<Entypo name="check" size={16} color="#22C55E" />
-					</TouchableOpacity>
-					<TouchableOpacity onPress={() => declinefrndrequest(item?.toID)} style={[styles.iconCircle, { backgroundColor: '#F0445222' }]}>
-						<Entypo name="cross" size={18} color="#F04452" />
-					</TouchableOpacity>
-				</View>
-			</View>
-		)
-	}
-
 
 	const styles = StyleSheet.create({
 		settingsView:
@@ -240,7 +154,7 @@ const ProfileScreen = () => {
 			{/* SETTINGS BAR */}
 			<View style={styles.settingsView}>
 				<View style={{ flex: 1 }}>
-					<Text numberOfLines={1} style={TEXT.usernametxt}>{value?.username}{' '}
+					<Text numberOfLines={1} style={TEXT.usernametxt}>{value?.username.toLowerCase()}{' '}
 						{value?.isVerified && (
 							<MaterialIcons name="verified" size={15} color={isDark ? '#06ec06' : '#00B341'} />
 						)}</Text>
@@ -306,19 +220,6 @@ const ProfileScreen = () => {
 					</View>
 				</View>
 			</Pressable>
-
-			{
-				allreq_friends.length > 0 && (
-					<Text style={styles.sectionLabel}>Friend Requests</Text>
-				)
-			}
-			<FlatList
-				data={allreq_friends}
-				renderItem={renderRequestPending_friends}
-				keyExtractor={(item, index) => `${item?.toID}-${index}`}
-				style={{ width: '100%', marginTop: 4 }}
-				scrollEnabled={false}
-			/>
 			</ScrollView>
 
 			{/* Profile Card */}

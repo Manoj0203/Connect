@@ -1,13 +1,13 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
-import { useEffect } from "react";
-import { Platform, View, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Platform, View, TouchableOpacity, StyleSheet, Animated } from "react-native";
 
 //Screens
 import HomeScreen from "./HomeScreen";
 import ProfileScreen from './ProfileScreen';
-import CreatePost from './CreatePost';
 import SearchScreen from './SearchScreen';
+import RoomsScreen from './RoomsScreen';
 
 //Icons — Ionicons only, matching HomeScreen.js
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -22,8 +22,54 @@ const Tab = createBottomTabNavigator();
 const ICONS = {
     Home: { active: 'home', inactive: 'home-outline' },
     search: { active: 'search', inactive: 'search-outline' },
+    Rooms: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
     Profile: { active: 'person', inactive: 'person-outline' },
 };
+
+function AnimatedAddButton({ activeRouteName, navigation, styles }) {
+    const showAdd = activeRouteName === 'Home' || activeRouteName === 'Rooms';
+    const anim = useRef(new Animated.Value(showAdd ? 1 : 0)).current;
+
+    useEffect(() => {
+        Animated.timing(anim, {
+            toValue: showAdd ? 1 : 0,
+            duration: 200,
+            useNativeDriver: false,
+        }).start();
+    }, [showAdd]);
+
+    const width = anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 54]
+    });
+
+    const scale = anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.1, 1]
+    });
+
+    const opacity = anim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1]
+    });
+
+    return (
+        <Animated.View style={{ width, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View style={{ transform: [{ scale }], opacity, position: 'absolute' }}>
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.createTab}
+                    onPress={() => {
+                        if (activeRouteName === 'Home') navigation.navigate('CreatePost');
+                        if (activeRouteName === 'Rooms') navigation.navigate('CreateRoom');
+                    }}
+                >
+                    <Ionicons name="add" size={28} color="#fff" />
+                </TouchableOpacity>
+            </Animated.View>
+        </Animated.View>
+    );
+}
 
 function CustomTabBar({ state, navigation }) {
     const { Colour, SPACING, RADIUS } = useTheme();
@@ -41,7 +87,7 @@ function CustomTabBar({ state, navigation }) {
             alignItems: 'center',
             justifyContent: 'space-around',
             backgroundColor: Colour.card.backgroundColor,
-            borderRadius: RADIUS.xl,
+            borderRadius: 15,
             borderWidth: 1,
             borderColor: Colour.border,
             paddingVertical: SPACING.sm,
@@ -50,7 +96,7 @@ function CustomTabBar({ state, navigation }) {
         tab: {
             width: 48,
             height: 48,
-            borderRadius: RADIUS.pill,
+            borderRadius: 15,
             alignItems: 'center',
             justifyContent: 'center',
         },
@@ -78,6 +124,7 @@ function CustomTabBar({ state, navigation }) {
             <View style={styles.bar}>
                 {state.routes.map((route, index) => {
                     const isFocused = state.index === index;
+                    const activeRouteName = state.routes[state.index].name;
 
                     const onPress = () => {
                         const event = navigation.emit({
@@ -90,22 +137,8 @@ function CustomTabBar({ state, navigation }) {
                         }
                     };
 
-                    // Create gets its own elevated treatment, not a regular tab slot.
-                    if (route.name === 'CreatePost') {
-                        return (
-                            <TouchableOpacity
-                                key={route.key}
-                                onPress={onPress}
-                                activeOpacity={0.85}
-                                style={styles.createTab}
-                            >
-                                <Ionicons name="add" size={28} color="#fff" />
-                            </TouchableOpacity>
-                        );
-                    }
-
                     const icon = ICONS[route.name];
-                    return (
+                    const tabElement = (
                         <TouchableOpacity
                             key={route.key}
                             onPress={onPress}
@@ -119,6 +152,18 @@ function CustomTabBar({ state, navigation }) {
                             />
                         </TouchableOpacity>
                     );
+
+                    // Inject the Add button after index 1 (Search tab)
+                    if (index === 1) {
+                        return (
+                            <React.Fragment key={route.key + "_frag"}>
+                                {tabElement}
+                                <AnimatedAddButton activeRouteName={activeRouteName} navigation={navigation} styles={styles} />
+                            </React.Fragment>
+                        );
+                    }
+
+                    return tabElement;
                 })}
             </View>
         </View>
@@ -149,7 +194,7 @@ export default function TabManagement() {
         >
             <Tab.Screen name="Home" component={HomeScreen} />
             <Tab.Screen name="search" component={SearchScreen} />
-            <Tab.Screen name="CreatePost" component={CreatePost} />
+            <Tab.Screen name="Rooms" component={RoomsScreen} />
             <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
     );

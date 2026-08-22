@@ -11,7 +11,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const APP_NAME = 'Connect';
 const APP_VERSION = 'v1.0.0';
-const LAST_UPDATED = 'July 19, 2026';
+const LAST_UPDATED = 'August 18, 2026';
 const SUPPORT_EMAIL = 'develax2007@gmail.com'
 
 const SECTIONS = [
@@ -75,15 +75,15 @@ const SECTIONS = [
 
 const PrivacyScreen = () => {
 	const navi = useNavigation();
-	const { isDark, TEXT } = useTheme();
+	const { isDark, TEXT, Colour } = useTheme();
 
-	const bg = isDark ? '#121214' : '#F7F7FA';
-	const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
-	const border = isDark ? '#2E2E33' : '#E7E7ED';
-	const fontcolor = isDark ? '#F4F4F6' : '#17171B';
-	const mutedcolor = isDark ? '#9A9AA5' : '#75758A';
-	const accent = isDark ? '#06ec06' : '#00B341';
-	const accentSoft = isDark ? '#173620' : '#E6F9EC';
+	const bg = Colour.bg.backgroundColor;
+	const cardBg = Colour.card.backgroundColor;
+	const border = Colour.border;
+	const fontcolor = Colour.textPrimary;
+	const mutedcolor = Colour.textSecondary;
+	const accent = Colour.accent;
+	const accentSoft = Colour.accentSoft;
 
 	const styles = StyleSheet.create({
 		container: {
@@ -152,7 +152,7 @@ const PrivacyScreen = () => {
 			borderRadius: 20,
 			borderWidth: 1,
 			borderColor: border,
-			padding: 16,
+			padding: 10,
 			marginBottom: 24,
 			flexDirection: 'row',
 			alignItems: 'center',
@@ -194,9 +194,7 @@ const PrivacyScreen = () => {
 
 				{/* APP META */}
 				<View style={styles.metaCard}>
-					<View style={[styles.iconCircle, { width: 44, height: 44, borderRadius: 22, backgroundColor: accentSoft }]}>
-						<Image source={require('../assets/images/connect.png')} style={{width: 50, height: 50, borderRadius: 10, borderWidth: 1, borderColor: '#227a22'}} />
-					</View>
+					<Image source={require('../assets/images/connect.png')} style={{width: 52, height: 52, borderRadius: 12, borderWidth: 1, borderColor:isDark ? '#255633' : '#E6F9EC'}} />
 					<View>
 						<Text style={styles.metaTitle}>{APP_NAME}</Text>
 						<Text style={styles.metaSub}>{APP_VERSION} · Last updated {LAST_UPDATED}</Text>

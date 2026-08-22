@@ -2,7 +2,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Touchable
 import React, { useRef, useState } from 'react'
 import { actions, RichEditor, RichToolbar } from "react-native-pell-rich-editor";
 import { useTheme } from '../utils/Theme';
-import { updateDoc, doc, serverTimestamp, getDoc, setDoc, collection } from 'firebase/firestore';
+import { updateDoc, doc, serverTimestamp, getDoc, setDoc, collection, increment } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
 import ImagePicker from 'react-native-image-crop-picker';
 import { ActivityIndicator, Snackbar } from 'react-native-paper'
@@ -88,11 +88,7 @@ const CreatePost = () => {
 				comments: {}
 			});
 
-			const userDocSnap = await getDoc(doc(db, 'users', user.uid));
-			if (userDocSnap.exists()) {
-				const post = (userDocSnap.data().post || 0) + 1
-				await updateDoc(doc(db, 'users', user.uid), { post })
-			}
+			await updateDoc(doc(db, 'users', user.uid), { post: increment(1) });
 			setText('');
 
 			richTextRef.current.setContentHTML('')
@@ -204,7 +200,7 @@ const CreatePost = () => {
 			backgroundColor: accent,
 			paddingHorizontal: 18,
 			paddingVertical: 8,
-			borderRadius: 999,
+			borderRadius: 12,
 		}
 	})
 
@@ -259,10 +255,18 @@ const CreatePost = () => {
 							<View style={styles.imagePreview}>
 								{
 									imageUri ?
-										<Image
-											source={{ uri: imageUri.path }}
-											style={{ width: '100%', height: (imageUri.height / imageUri.width) * (screenWidth * 0.9) }}
-											resizeMode='cover' />
+										<View style={{ width: '100%', position: 'relative' }}>
+											<Image
+												source={{ uri: imageUri.path }}
+												style={{ width: '100%', height: (imageUri.height / imageUri.width) * (screenWidth * 0.9) }}
+												resizeMode='cover' />
+											<TouchableOpacity 
+												style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(177, 0, 0, 0.6)', borderRadius: 8, width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}
+												onPress={() => setImageUri(null)}
+											>
+												<Ionicons name="close" size={20} color="#ffffff" />
+											</TouchableOpacity>
+										</View>
 										:
 										<TouchableOpacity onPress={handleImageSelection} style={styles.emptyImageBox}>
 											<Ionicons name="image-outline" size={26} color={placeholdercolor} />

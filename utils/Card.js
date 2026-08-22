@@ -31,6 +31,7 @@ const Card = ({ item, curruser }) => {
 
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const [isPostLiked, setIsPostLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(item?.likes || 0);
     const [currpostcomment, setCurrPostComment] = useState('');
     const [comments, setComments] = useState([]);
     const [commentid, setCommentID] = useState('');
@@ -108,35 +109,45 @@ const Card = ({ item, curruser }) => {
 
     useEffect(() => {
         setIsPostLiked(!!item?.likedby?.[curruser]);
-    }, [item?.likedby, curruser]);
+        setLikeCount(item?.likes || 0);
+    }, [item?.likedby, item?.likes, curruser]);
 
     const handleLike = async (pid) => {
-        const userDocSnap = await getDoc(doc(db, 'posts', pid?.postID));
-        const likedByFieldPath = `likedby.${curruser}`;
-        const likedpost = `postliked.${pid?.postID}`
+        const currentlyLiked = isPostLiked;
+        setIsPostLiked(!currentlyLiked);
+        setLikeCount(prev => currentlyLiked ? prev - 1 : prev + 1);
 
-        if (userDocSnap.exists()) {
-            const data = userDocSnap.data().likedby;
-            if (data[curruser]) {
-                await updateDoc(doc(db, 'posts', pid?.postID), {
-                    likes: increment(-1),
-                    [likedByFieldPath]: deleteField()
-                })
-                await updateDoc(doc(db, 'users', curruser), {
-                    [likedpost]: deleteField(),
-                })
+        try {
+            const userDocSnap = await getDoc(doc(db, 'posts', pid?.postID));
+            const likedByFieldPath = `likedby.${curruser}`;
+            const likedpost = `postliked.${pid?.postID}`;
+
+            if (userDocSnap.exists()) {
+                const data = userDocSnap.data().likedby || {};
+                if (data[curruser]) {
+                    await updateDoc(doc(db, 'posts', pid?.postID), {
+                        likes: increment(-1),
+                        [likedByFieldPath]: deleteField()
+                    });
+                    await updateDoc(doc(db, 'users', curruser), {
+                        [likedpost]: deleteField(),
+                    });
+                }
+                else {
+                    await updateDoc(doc(db, 'posts', pid?.postID), {
+                        likes: increment(1),
+                        [likedByFieldPath]: true
+                    });
+                    await updateDoc(doc(db, 'users', curruser), {
+                        [likedpost]: true
+                    });
+                }
             }
-            else {
-                await updateDoc(doc(db, 'posts', pid?.postID), {
-                    likes: increment(1),
-                    [likedByFieldPath]: true
-                })
-                await updateDoc(doc(db, 'users', curruser), {
-                    [likedpost]: true
-                })
-            }
+        } catch (error) {
+            setIsPostLiked(currentlyLiked);
+            setLikeCount(prev => currentlyLiked ? prev + 1 : prev - 1);
+            console.log("Error liking post: ", error);
         }
-
     }
 
     const accent = isDark ? '#06ec06' : '#00B341';
@@ -461,7 +472,7 @@ const Card = ({ item, curruser }) => {
                 <TouchableOpacity style={styles.actionPill} onPress={() => handleLike(item)}>
                     <Ionicons name={isPostLiked ? "heart" : "heart-outline"} size={18}
                         color={isPostLiked ? '#F04452' : (isDark ? "#F4F4F6" : "#17171B")} />
-                    <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#F4F4F6' : '#17171B', marginLeft: 6, fontSize: 13 }}>{item?.likes}</Text>
+                    <Text style={{ fontFamily: 'Anaheim-Bold', color: isDark ? '#F4F4F6' : '#17171B', marginLeft: 6, fontSize: 13 }}>{likeCount}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionPill} onPress={() => setIsCommentModalVisible(true)}>

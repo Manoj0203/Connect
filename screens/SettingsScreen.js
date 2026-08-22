@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView, TextInput, Linking } from 'react-native'
 import React, { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useTheme } from '../utils/Theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Modal from 'react-native-modal'
@@ -13,9 +13,10 @@ import Entypo from 'react-native-vector-icons/Entypo';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { Snackbar } from 'react-native-paper';
 
-import { signOut, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { signOut, EmailAuthProvider, reauthenticateWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import auth, { db } from '../services/firebaseAuth';
 import { collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 const SettingsScreen = () => {
 	const navi = useNavigation();
@@ -34,6 +35,7 @@ const SettingsScreen = () => {
 	const dangerSoft = '#F0445222';
 
 	const user = auth.currentUser;
+	const isGoogleUser = user?.providerData?.some(provider => provider.providerId === 'google.com');
 
 	const [Email, setEmail] = useState('')
 	const [currpasswd, setCurrPasswd] = useState('')
@@ -54,7 +56,12 @@ const SettingsScreen = () => {
 				otp: null,
 			});
 			await auth.signOut();
-			navi.replace('Login');
+			navi.dispatch(
+				CommonActions.reset({
+					index: 0,
+					routes: [{ name: 'Login' }],
+				})
+			);
 		}
 		catch (e) {
 			console.log(e);
@@ -63,30 +70,60 @@ const SettingsScreen = () => {
 
 	const deleteAccount = async () => {
 		if (!user) {
-			navi.replace('Login')
+			navi.dispatch(
+				CommonActions.reset({
+					index: 0,
+					routes: [{ name: 'Login' }],
+				})
+			);
 			return;
 		}
 
 		try {
-			const Crendential = EmailAuthProvider.credential(Email, currpasswd);
-			await reauthenticateWithCredential(user, Crendential);
+			if (isGoogleUser) {
+				// Re-authenticate with Google
+				// Force the account picker to appear to guarantee a UI prompt
+				try {
+					await GoogleSignin.signOut();
+				} catch (e) {}
+
+				const signInResult = await GoogleSignin.signIn();
+				const idToken = signInResult?.idToken || signInResult?.data?.idToken;
+				if (!idToken) throw new Error('No ID token received from Google');
+				const credential = GoogleAuthProvider.credential(idToken);
+				await reauthenticateWithCredential(user, credential);
+			} else {
+				// Re-authenticate with Email/Password
+				const Crendential = EmailAuthProvider.credential(Email, currpasswd);
+				await reauthenticateWithCredential(user, Crendential);
+			}
 
 			const docRef = collection(db, 'posts');
 			const docSnap = await getDocs(docRef);
 
-			docSnap.docs.map((item) => {
+			await Promise.all(docSnap.docs.map(async (item) => {
 				if (item.data().userID === user.uid) {
-					deleteDoc(doc(db, 'posts', item.data().postID))
+					await deleteDoc(doc(db, 'posts', item.data().postID))
 				}
-			})
+			}));
 
 			await deleteDoc(doc(db, 'users', user.uid));
 			await user.delete();
 
-			navi.replace('Login');
+			navi.dispatch(
+				CommonActions.reset({
+					index: 0,
+					routes: [{ name: 'Login' }],
+				})
+			);
 		}
 		catch (e) {
-			setInValidSnackVisible(true)
+			console.log("Delete Account Error: ", e);
+			if (e.code === 'auth/requires-recent-login') {
+				alert("Please sign out and sign in again before deleting your account.");
+			} else {
+				setInValidSnackVisible(true);
+			}
 		}
 	}
 
@@ -282,44 +319,52 @@ const SettingsScreen = () => {
 						This can't be undone. Confirm your credentials to continue.
 					</Text>
 
-					<TextInput
-						placeholder='Email'
-						placeholderTextColor={placeholdercolor}
-						style={[TEXTINPUT.txtinput, { width: '100%', minWidth: 0 }]}
-						keyboardType='email-address'
-						autoCapitalize='none'
-						value={Email}
-						onChangeText={setEmail} />
+					{ !isGoogleUser ? (
+						<>
+							<TextInput
+								placeholder='Email'
+								placeholderTextColor={placeholdercolor}
+								style={[TEXTINPUT.txtinput, { width: '100%', minWidth: 0 }]}
+								keyboardType='email-address'
+								autoCapitalize='none'
+								value={Email}
+								onChangeText={setEmail} />
 
-					<View style={{
-						backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
-						borderRadius: 12,
-						borderWidth: 1,
-						borderColor: border,
-						marginVertical: 6,
-						width: '100%',
-						minHeight: 46,
-						alignItems: 'center',
-						justifyContent: 'space-between',
-						flexDirection: 'row',
-						paddingHorizontal: 14,
-					}}>
-						<TextInput
-							style={{ color: fontcolor, flex: 1, fontFamily: 'Anaheim-SemiBold' }}
-							placeholder='Password'
-							value={currpasswd}
-							onChangeText={setCurrPasswd}
-							secureTextEntry={!showpasswd}
-							placeholderTextColor={placeholdercolor} />
-						<TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
-							{
-								showpasswd ?
-									<Entypo name="eye" size={20} color={placeholdercolor} />
-									:
-									<Entypo name="eye-with-line" size={20} color={placeholdercolor} />
-							}
-						</TouchableOpacity>
-					</View>
+							<View style={{
+								backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4',
+								borderRadius: 12,
+								borderWidth: 1,
+								borderColor: border,
+								marginVertical: 6,
+								width: '100%',
+								minHeight: 46,
+								alignItems: 'center',
+								justifyContent: 'space-between',
+								flexDirection: 'row',
+								paddingHorizontal: 14,
+							}}>
+								<TextInput
+									style={{ color: fontcolor, flex: 1, fontFamily: 'Anaheim-SemiBold' }}
+									placeholder='Password'
+									value={currpasswd}
+									onChangeText={setCurrPasswd}
+									secureTextEntry={!showpasswd}
+									placeholderTextColor={placeholdercolor} />
+								<TouchableOpacity onPress={() => setShowPasswd(!showpasswd)}>
+									{
+										showpasswd ?
+											<Entypo name="eye" size={20} color={placeholdercolor} />
+											:
+											<Entypo name="eye-with-line" size={20} color={placeholdercolor} />
+									}
+								</TouchableOpacity>
+							</View>
+						</>
+					) : (
+						<Text style={{color: fontcolor, fontFamily: 'Anaheim-SemiBold', textAlign: 'center', marginVertical: 14}}>
+							Are you sure you want to permanently delete your account? You will be prompted to verify with Google.
+						</Text>
+					)}
 
 					<View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 12 }}>
 						<TouchableOpacity
@@ -330,7 +375,7 @@ const SettingsScreen = () => {
 						<TouchableOpacity
 							onPress={deleteAccount}
 							style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: danger }}>
-							<Text style={{ color: '#fff', fontFamily: 'Anaheim-Bold', fontSize: 14, textAlign: 'center', }}>Confirm Delete</Text>
+							<Text style={{ color: '#fff', fontFamily: 'Anaheim-Bold', fontSize: 14, textAlign: 'center', }}>Verify & Delete</Text>
 						</TouchableOpacity>
 					</View>
 				</View>
