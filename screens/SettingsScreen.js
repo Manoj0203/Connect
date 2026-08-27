@@ -17,6 +17,7 @@ import { signOut, EmailAuthProvider, reauthenticateWithCredential, GoogleAuthPro
 import auth, { db } from '../services/firebaseAuth';
 import { collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SettingsScreen = () => {
 	const navi = useNavigation();
@@ -56,6 +57,7 @@ const SettingsScreen = () => {
 				otp: null,
 			});
 			await auth.signOut();
+			await AsyncStorage.removeItem(`SEARCH_HISTORY_${user ? user.uid : 'guest'}`);
 			navi.dispatch(
 				CommonActions.reset({
 					index: 0,

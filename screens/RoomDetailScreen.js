@@ -8,8 +8,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../utils/Theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import auth, { db } from '../services/firebaseAuth';
-import { collection, query, where, getDocs, orderBy, onSnapshot, addDoc, doc, getDoc, deleteDoc, updateDoc, arrayRemove } from 'firebase/firestore';
-import { ActivityIndicator } from 'react-native-paper';
+import { collection, query, where, getDocs, orderBy, onSnapshot, addDoc, doc, getDoc, deleteDoc, updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
+import { ActivityIndicator, Snackbar } from 'react-native-paper';
 import Card from '../utils/Card';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -35,7 +35,8 @@ export default function RoomDetailScreen() {
     const [isMember, setIsMember] = useState(room.members && room.members.includes(curruser.uid));
     const [password, setPassword] = useState('');
     const [joining, setJoining] = useState(false);
-
+    const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(isMember);
     const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +60,7 @@ export default function RoomDetailScreen() {
         };
     }, []);
 
-        const stringToColor = (string) => {
+    const stringToColor = (string) => {
 
         const PREDEFINED_COLORS = [
             '#00796B', // Dark Teal
@@ -113,7 +114,7 @@ export default function RoomDetailScreen() {
                     replyToContent: replyingTo ? replyingTo.content : null,
                 };
                 await addDoc(collection(db, 'roomPosts'), newPost);
-                
+
                 const roomSnap = await getDoc(doc(db, 'rooms', room.id));
                 if (roomSnap.exists()) {
                     const roomData = roomSnap.data();
@@ -137,19 +138,21 @@ export default function RoomDetailScreen() {
         }
     };
 
+    const canView = isMember || room.visibility === 'public';
+
     useEffect(() => {
-        if (isMember) {
+        if (canView) {
             const fetchBlockedUsers = async () => {
-                const userDoc = await getDoc(doc(db, 'users', curruser.uid));
-                if (userDoc.exists()) {
-                    setBlockedUsers(userDoc.data().blockedUsers || []);
+                const userData = await getUserData(curruser.uid);
+                if (userData) {
+                    setBlockedUsers(userData.blockedUsers || []);
                 }
             };
             fetchBlockedUsers();
             loadPosts();
-            
+
             // Clear unread status when opening room
-            if (curruser) {
+            if (curruser && isMember) {
                 updateDoc(doc(db, 'rooms', room.id), {
                     unreadBy: arrayRemove(curruser.uid)
                 }).catch(e => console.log('Error clearing unread', e));
@@ -158,7 +161,7 @@ export default function RoomDetailScreen() {
             const unsubscribe = subscribeToPosts();
             return () => unsubscribe();
         }
-    }, [isMember]);
+    }, [canView, isMember]);
 
     const loadPosts = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -198,32 +201,50 @@ export default function RoomDetailScreen() {
         });
     };
 
+    const isInvited = room.invited && room.invited.includes(curruser.uid);
+
     const handleJoin = async () => {
-        if (!password) return showAlert("Error", "Enter password");
+        Keyboard.dismiss();
+        if (room.visibility !== 'public' && !isInvited && !password) {
+            setSnackbarMessage("Enter password");
+            setSnackbarVisible(true);
+            return;
+        }
         setJoining(true);
         try {
-            const token = await curruser.getIdToken();
-            const response = await fetch(`${BACKEND_URL}joinRoom`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    roomId: room.id,
-                    password
-                })
-            });
-
-            const result = await response.json();
-            if (result.success) {
+            if (room.visibility === 'public' || isInvited) {
+                // Bypass backend password check for public rooms or invited users
+                await updateDoc(doc(db, 'rooms', room.id), {
+                    members: arrayUnion(curruser.uid),
+                    ...(isInvited && { invited: arrayRemove(curruser.uid) })
+                });
                 setIsMember(true);
-                // Also update local cache for the room so it shows in RoomsScreen without refresh
             } else {
-                showAlert("Error", result.message);
+                // Call backend for private rooms to check password
+                const token = await curruser.getIdToken();
+                const response = await fetch(`${BACKEND_URL}joinRoom`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        roomId: room.id,
+                        password
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    setIsMember(true);
+                } else {
+                    setSnackbarMessage(result.message || "Incorrect password");
+                    setSnackbarVisible(true);
+                }
             }
         } catch (error) {
-            showAlert("Error", "Could not join room");
+            setSnackbarMessage("Could not join room");
+            setSnackbarVisible(true);
         } finally {
             setJoining(false);
         }
@@ -231,26 +252,35 @@ export default function RoomDetailScreen() {
 
     const renderJoinUI = () => (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.joinContainer}>
-            <Ionicons name="lock-closed" size={60} color={Colour.textSecondary} style={{ marginBottom: 20 }} />
-            <Text style={[TEXT.heading, { color: Colour.textPrimary, marginBottom: 10 }]}>Private Room</Text>
-            <Text style={[TEXT.detailsSideHeading, { color: Colour.textSecondary, marginBottom: 20, textAlign: 'center' }]}>
-                {room.name} is private. Enter the password to join.
-            </Text>
+            <Ionicons name={room.visibility === 'public' ? "globe" : "lock-closed"} size={60} color={Colour.textSecondary} style={{ marginBottom: 20 }} />
+            <Text style={[TEXT.heading, { color: Colour.textPrimary, marginBottom: 10 }]}>{room.visibility === 'public' ? "Public Room" : "Private Room"}</Text>
+            
+            {isInvited ? (
+                <Text style={[TEXT.detailsSideHeading, { color: Colour.textSecondary, marginBottom: 20, textAlign: 'center' }]}>
+                    You have been invited to {room.name}!
+                </Text>
+            ) : (
+                <>
+                    <Text style={[TEXT.detailsSideHeading, { color: Colour.textSecondary, marginBottom: 20, textAlign: 'center' }]}>
+                        {room.name} requires a password to join.
+                    </Text>
 
-            <View style={styles.inputRow}>
-                <Ionicons name="key" size={20} color={Colour.textSecondary} style={{ marginRight: 10 }} />
-                <TextInput
-                    style={styles.textInput}
-                    placeholder="Password"
-                    placeholderTextColor={Colour.textSecondary}
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-            </View>
+                    <View style={styles.inputRow}>
+                        <Ionicons name="key" size={20} color={Colour.textSecondary} style={{ marginRight: 10 }} />
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder="Password"
+                            placeholderTextColor={Colour.textSecondary}
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                        />
+                    </View>
+                </>
+            )}
 
             <TouchableOpacity style={styles.joinBtn} onPress={handleJoin} disabled={joining}>
-                {joining ? <ActivityIndicator color="#fff" /> : <Text style={styles.joinBtnText}>Join Room</Text>}
+                {joining ? <ActivityIndicator color="#000" /> : <Text style={styles.joinBtnText}>{isInvited ? "Accept Invite" : "Join Room"}</Text>}
             </TouchableOpacity>
         </KeyboardAvoidingView>
     );
@@ -442,7 +472,7 @@ export default function RoomDetailScreen() {
             alignItems: 'center',
         },
         joinBtnText: {
-            color: '#fff',
+            color: '#000',
             fontFamily: 'Anaheim-Bold',
             fontSize: 16,
         },
@@ -451,11 +481,22 @@ export default function RoomDetailScreen() {
         },
     });
 
-    if (!isMember) {
+    if (!canView) {
         return (
             <SafeAreaView style={styles.container}>
                 {renderHeader()}
                 {renderJoinUI()}
+                <Snackbar
+                    visible={snackbarVisible}
+                    onDismiss={() => setSnackbarVisible(false)}
+                    onclick={() => setSnackbarVisible(false)}
+                    duration={3000}
+                    wrapperStyle={{ position: 'absolute' }}
+                    style={{ height: 'auto' }}
+                    sidebg={{ backgroundColor: 'rgba(255, 71, 71, 1)' }}
+                >
+                    <Text style={{ color: '#fff', fontFamily: 'Anaheim-SemiBold' }}>{snackbarMessage}</Text>
+                </Snackbar>
             </SafeAreaView>
         );
     }
@@ -503,109 +544,131 @@ export default function RoomDetailScreen() {
                 )}
 
                 {/* Reply Preview */}
-                {replyingTo && (
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: Colour.card.backgroundColor,
-                        padding: 10,
-                        borderTopWidth: 1,
-                        borderTopColor: Colour.border,
-                    }}>
-                        <View style={{ width: 4, height: '100%', backgroundColor: lightenColor(roomColor, 40), borderRadius: 2, marginRight: 10 }} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 13, color: roomColor }}>
-                                Replying to {replyingTo.userID === curruser.uid ? 'You' : replyingTo.username}
-                            </Text>
-                            <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }} numberOfLines={1}>
-                                {replyingTo.content}
-                            </Text>
-                        </View>
-                        <TouchableOpacity onPress={() => setReplyingTo(null)} style={{ padding: 4 }}>
-                            <Ionicons name="close-circle" size={20} color={Colour.textSecondary} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Edit Preview */}
-                {editingMessage && (
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        backgroundColor: Colour.card.backgroundColor,
-                        padding: 10,
-                        borderTopWidth: 1,
-                        borderTopColor: Colour.border,
-                    }}>
-                        <View style={{ width: 4, height: '100%', backgroundColor: roomColor, borderRadius: 2, marginRight: 10 }} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 13, color: roomColor }}>
-                                Editing Message
-                            </Text>
-                            <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }} numberOfLines={1}>
-                                {editingMessage.content}
-                            </Text>
-                        </View>
-                        <TouchableOpacity onPress={() => { setEditingMessage(null); setMessageText(''); }} style={{ padding: 4 }}>
-                            <Ionicons name="close-circle" size={20} color={Colour.textSecondary} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Input Area */}
-                <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'flex-end',
-                    padding: 12,
-                    paddingBottom: isKeyboardVisible ? 12 : Math.max(12, insets.bottom),
-                    borderTopWidth: 1,
-                    borderTopColor: Colour.border,
-                    backgroundColor: Colour.bg.backgroundColor,
-                    marginBottom: Platform.OS === 'ios' ? 10 : 0
-                }}>
-                    <TextInput
-                        style={{
-                            flex: 1,
-                            backgroundColor: Colour.card.backgroundColor,
-                            borderWidth: 1,
-                            borderColor: Colour.border,
-                            borderRadius: 20,
-                            paddingHorizontal: 16,
-                            paddingTop: 12,
-                            paddingBottom: 12,
-                            maxHeight: 120,
-                            minHeight: 44,
-                            color: Colour.textPrimary,
-                            fontFamily: 'Anaheim-Regular',
-                            fontSize: 15
-                        }}
-                        placeholder="Message..."
-                        placeholderTextColor={Colour.textSecondary}
-                        multiline
-                        value={messageText}
-                        onChangeText={setMessageText}
-                    />
-                    <TouchableOpacity
-                        style={{
-                            backgroundColor: roomColor,
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginLeft: 10,
-                            marginBottom: 0
-                        }}
-                        onPress={handleSendMessage}
-                        disabled={sending}
-                    >
-                        {sending ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                            <Ionicons name={editingMessage ? "checkmark" : "send"} size={18} color="#fff" style={{ marginLeft: editingMessage ? 0 : 3 }} />
+                {isMember ? (
+                    <>
+                        {/* Reply Preview */}
+                        {replyingTo && (
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: Colour.card.backgroundColor,
+                                padding: 10,
+                                borderTopWidth: 1,
+                                borderTopColor: Colour.border,
+                            }}>
+                                <View style={{ width: 4, height: '100%', backgroundColor: lightenColor(roomColor, 40), borderRadius: 2, marginRight: 10 }} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 13, color: roomColor }}>
+                                        Replying to {replyingTo.userID === curruser.uid ? 'You' : replyingTo.username}
+                                    </Text>
+                                    <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }} numberOfLines={1}>
+                                        {replyingTo.content}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setReplyingTo(null)} style={{ padding: 4 }}>
+                                    <Ionicons name="close-circle" size={20} color={Colour.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
                         )}
-                    </TouchableOpacity>
-                </View>
+
+                        {/* Edit Preview */}
+                        {editingMessage && (
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: Colour.card.backgroundColor,
+                                padding: 10,
+                                borderTopWidth: 1,
+                                borderTopColor: Colour.border,
+                            }}>
+                                <View style={{ width: 4, height: '100%', backgroundColor: roomColor, borderRadius: 2, marginRight: 10 }} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 13, color: roomColor }}>
+                                        Editing Message
+                                    </Text>
+                                    <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }} numberOfLines={1}>
+                                        {editingMessage.content}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={() => { setEditingMessage(null); setMessageText(''); }} style={{ padding: 4 }}>
+                                    <Ionicons name="close-circle" size={20} color={Colour.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {/* Input Area */}
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'flex-end',
+                            padding: 12,
+                            paddingBottom: isKeyboardVisible ? 12 : Math.max(12, insets.bottom),
+                            borderTopWidth: 1,
+                            borderTopColor: Colour.border,
+                            backgroundColor: Colour.bg.backgroundColor,
+                            marginBottom: Platform.OS === 'ios' ? 10 : 0
+                        }}>
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    backgroundColor: Colour.card.backgroundColor,
+                                    borderWidth: 1,
+                                    borderColor: Colour.border,
+                                    borderRadius: 20,
+                                    paddingHorizontal: 16,
+                                    paddingTop: 12,
+                                    paddingBottom: 12,
+                                    maxHeight: 120,
+                                    minHeight: 44,
+                                    color: Colour.textPrimary,
+                                    fontFamily: 'Anaheim-Regular',
+                                    fontSize: 15
+                                }}
+                                placeholder="Message..."
+                                placeholderTextColor={Colour.textSecondary}
+                                multiline
+                                value={messageText}
+                                onChangeText={setMessageText}
+                            />
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: roomColor,
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 22,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginLeft: 10,
+                                    marginBottom: 0
+                                }}
+                                onPress={handleSendMessage}
+                                disabled={sending}
+                            >
+                                {sending ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Ionicons name={editingMessage ? "checkmark" : "send"} size={18} color="#fff" style={{ marginLeft: editingMessage ? 0 : 3 }} />
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                ) : (
+                    <View style={{
+                        padding: 12,
+                        paddingBottom: Math.max(12, insets.bottom),
+                        borderTopWidth: 1,
+                        borderTopColor: Colour.border,
+                        backgroundColor: Colour.bg.backgroundColor,
+                        marginBottom: Platform.OS === 'ios' ? 10 : 0
+                    }}>
+                        <TouchableOpacity
+                            style={styles.joinBtn}
+                            onPress={handleJoin}
+                            disabled={joining}
+                        >
+                            {joining ? <ActivityIndicator size="small" color="#000" /> : <Text style={styles.joinBtnText}>Join Room to Chat</Text>}
+                        </TouchableOpacity>
+                    </View>
+                )}
             </KeyboardAvoidingView>
 
             {/* Message Options Modal */}
@@ -670,7 +733,7 @@ export default function RoomDetailScreen() {
                                     });
                                     setReportedMessageIds(prev => [...prev, longPressedMessage.postID]);
                                     setIsMessageOptionsVisible(false);
-                                } catch(e) { console.log(e) }
+                                } catch (e) { console.log(e) }
                             }}
                         >
                             <Ionicons name="warning-outline" size={24} color={reportedMessageIds.includes(longPressedMessage?.postID) ? (isDark ? '#5b2727' : '#aa4848') : "#F04452"} style={{ marginRight: 16 }} />
@@ -681,13 +744,26 @@ export default function RoomDetailScreen() {
                     )}
                 </View>
             </Modal>
-        
-            <AlertModal 
-                config={alertConfig} 
-                onClose={hideAlert} 
-                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
-                isDark={isDark} 
+
+            <AlertModal
+                config={alertConfig}
+                onClose={hideAlert}
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }}
+                isDark={isDark}
             />
+            <Snackbar
+                visible={snackbarVisible}
+                onDismiss={() => setSnackbarVisible(false)}
+                duration={3000}
+                style={{ backgroundColor: isDark ? '#333' : '#333' }}
+                action={{
+                    label: 'OK',
+                    onPress: () => setSnackbarVisible(false),
+                    textColor: '#fff'
+                }}
+            >
+                <Text style={{ color: '#fff', fontFamily: 'Anaheim-SemiBold' }}>{snackbarMessage}</Text>
+            </Snackbar>
         </SafeAreaView>
     );
 }

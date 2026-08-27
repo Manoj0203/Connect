@@ -30,33 +30,25 @@ export default function HomeScreen() {
 		}
 	})
 	
-	const switchsettingup = async () => {
-		const docRef = doc(db, 'users', curruser.uid);
-		const docSnap = await getDoc(docRef);
-		if (docSnap.exists() && docSnap.data().isSetupComplete === false) {
+	const checkUserStatus = async () => {
+		const userData = await getUserData(curruser.uid);
+		if (!userData) return;
+
+		if (userData.isSetupComplete === false) {
 			navigation.replace('SettingUp');
 			return;
 		}
-	}
-	const switchtoauth = async () => {
-		const docRef = doc(db, 'users', curruser.uid);
-		const docSnap = await getDoc(docRef);
-		if (docSnap.exists() && docSnap.data().otpVerified === false && docSnap.data().authentication === true) {
+		
+		if (userData.otpVerified === false && userData.authentication === true) {
 			navigation.replace('Auth');
 			return;
 		}
-	}
+
+		setBlockedUsers(userData.blockedUsers || []);
+	};
 
 	useEffect(() => {
-		switchsettingup();
-		switchtoauth();
-        const fetchBlockedUsers = async () => {
-            const userDoc = await getDoc(doc(db, 'users', curruser.uid));
-            if (userDoc.exists()) {
-                setBlockedUsers(userDoc.data().blockedUsers || []);
-            }
-        };
-        fetchBlockedUsers();
+		checkUserStatus();
 		getPosts();
 	}, []);
 

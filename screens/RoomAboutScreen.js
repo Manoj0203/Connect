@@ -1,4 +1,4 @@
-import { StyleSheet, Platform, Text, View, TouchableOpacity, ScrollView, Image, TextInput, Alert } from 'react-native';
+import { StyleSheet, Platform, Text, View, TouchableOpacity, ScrollView, Image, TextInput, Alert, Switch } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
@@ -161,6 +161,19 @@ export default function RoomAboutScreen() {
             showAlert("Error", "Action failed.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleVisibility = async (newValue) => {
+        if (!canManage) return;
+        const newVis = newValue ? 'public' : 'private';
+        try {
+            await updateDoc(doc(db, 'rooms', room.id), {
+                visibility: newVis
+            });
+            loadRoomData();
+        } catch (e) {
+            showAlert("Error", "Failed to change visibility.");
         }
     };
 
@@ -478,6 +491,32 @@ export default function RoomAboutScreen() {
                             </>
                         );
                     })()}
+                </View>
+
+                {/* ROOM VISIBILITY (VISIBLE TO ALL MEMBERS) */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Room Visibility</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colour.card.backgroundColor, padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: Colour.border }}>
+                         <View style={{ flex: 1, marginRight: 10 }}>
+                             <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 16, color: Colour.textPrimary }}>
+                                 {room.visibility === 'public' ? 'Public Room' : 'Private Room'}
+                             </Text>
+                             <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }}>
+                                 {room.visibility === 'public' ? 'Visible in search to anyone.' : 'Hidden from search unless invited.'}
+                             </Text>
+                         </View>
+                         <Switch 
+                              value={room.visibility === 'public'} 
+                              onValueChange={handleToggleVisibility} 
+                              disabled={!canManage}
+                              trackColor={{ false: Colour.border, true: Colour.accent }}
+                         />
+                    </View>
+                    {!canManage && (
+                         <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 12, color: Colour.textSecondary, marginTop: 4, marginLeft: 4 }}>
+                             Only owners and admins can change visibility.
+                         </Text>
+                    )}
                 </View>
 
                 {/* SETTINGS (COLLAPSIBLE) */}

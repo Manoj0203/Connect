@@ -18,9 +18,10 @@ import {
     Pressable,
 } from 'react-native';
 import AlertModal from './AlertModal'
-import { addDoc, collection, doc, increment, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, increment, writeBatch, query, getDocs, where } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
 import Share from 'react-native-share';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -45,6 +46,33 @@ const PopUp = ({
     const [modalVisible, setModalVisible] = useState(false);
     const [render, setRender] = useState(visible);
     const [isReported, setIsReported] = useState(false);
+
+    useEffect(() => {
+        const checkReportStatus = async () => {
+            if (!postId || !curruser) return;
+            try {
+                const cacheKey = `reported_posts_${curruser}`;
+                const cachedStr = await AsyncStorage.getItem(cacheKey);
+                let reportedIds = cachedStr ? JSON.parse(cachedStr) : [];
+                
+                if (reportedIds.includes(postId)) {
+                    setIsReported(true);
+                    return;
+                }
+
+                const q = query(collection(db, 'Reports'), where('postID', '==', postId), where('reportedByUserID', '==', curruser));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    setIsReported(true);
+                    reportedIds.push(postId);
+                    await AsyncStorage.setItem(cacheKey, JSON.stringify(reportedIds));
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        };
+        if (visible) checkReportStatus();
+    }, [visible, postId, curruser]);
 
     useEffect(() => {
         if (visible) {
@@ -129,6 +157,16 @@ const PopUp = ({
                 status: 'pending',
             });
             setIsReported(true);
+
+            // Update async storage
+            const cacheKey = `reported_posts_${curruser}`;
+            const cachedStr = await AsyncStorage.getItem(cacheKey);
+            let reportedIds = cachedStr ? JSON.parse(cachedStr) : [];
+            if (!reportedIds.includes(postId)) {
+                reportedIds.push(postId);
+                await AsyncStorage.setItem(cacheKey, JSON.stringify(reportedIds));
+            }
+
             onClose();
         } catch (error) {
             console.log(error);

@@ -21,6 +21,7 @@ import PopUp from './PopUp'
 import { Divider, } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Card = ({ item, curruser }) => {
     const { isDark, TEXT, Colour } = useTheme();
@@ -54,16 +55,24 @@ const Card = ({ item, curruser }) => {
 
     const loadReports = async () => {
         try {
-            // Fetch reports
-            const reportsRef = collection(db, 'Reports');
-            const qReports = query(
-                reportsRef,
-                where('reportedByUserID', '==', curruser),
-                where('postID', '==', item.postID)
-            );
-            const snapshotReports = await getDocs(qReports);
-            const ids = snapshotReports.docs.map((d) => d.data().commentID);
-            setReportedCommentIds(ids);
+            const cacheKey = `reported_comments_${curruser}_${item.postID}`;
+            const cachedStr = await AsyncStorage.getItem(cacheKey);
+            
+            if (cachedStr) {
+                setReportedCommentIds(JSON.parse(cachedStr));
+            } else {
+                // Fetch reports from FB
+                const reportsRef = collection(db, 'Reports');
+                const qReports = query(
+                    reportsRef,
+                    where('reportedByUserID', '==', curruser),
+                    where('postID', '==', item.postID)
+                );
+                const snapshotReports = await getDocs(qReports);
+                const ids = snapshotReports.docs.map((d) => d.data().commentID);
+                setReportedCommentIds(ids);
+                await AsyncStorage.setItem(cacheKey, JSON.stringify(ids));
+            }
 
             setAreCommentsLoaded(true);
         } catch (error) {
@@ -345,6 +354,13 @@ const Card = ({ item, curruser }) => {
                 createdAt: Date.now(),
                 status: 'pending',
             });
+
+            // Update local state and async storage
+            const newIds = [...reportedCommentIds, commentid];
+            setReportedCommentIds(newIds);
+            
+            const cacheKey = `reported_comments_${curruser}_${item?.postID}`;
+            await AsyncStorage.setItem(cacheKey, JSON.stringify(newIds));
 
             setIsCommentModalOption(false);
         } catch (err) {

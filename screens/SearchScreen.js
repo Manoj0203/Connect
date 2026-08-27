@@ -13,7 +13,8 @@ const SearchScreen = () => {
 
     const { Colour, isDark, TEXT, SPACING, RADIUS } = useTheme();
 
-    const searchhistory = "SEARCH_HISTORY";
+    const curruser = auth.currentUser;
+    const searchhistory = `SEARCH_HISTORY_${curruser ? curruser.uid : 'guest'}`;
 
     const navi = useNavigation();
 

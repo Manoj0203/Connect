@@ -69,10 +69,25 @@ export default function RoomsScreen() {
         }
         setLoading(true);
         try {
-            const q = collection(db, 'rooms');
-            const snapshot = await getDocs(q);
-            const allRooms = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-            const filtered = allRooms.filter(r => r.name.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+            const qPublic = query(collection(db, 'rooms'), where('visibility', '==', 'public'));
+            const qMember = query(collection(db, 'rooms'), where('members', 'array-contains', curruser.uid));
+            
+            const [snapPublic, snapMember] = await Promise.all([getDocs(qPublic), getDocs(qMember)]);
+            
+            const roomsMap = new Map();
+            
+            snapPublic.docs.forEach(doc => {
+                roomsMap.set(doc.id, { ...doc.data(), id: doc.id });
+            });
+            
+            snapMember.docs.forEach(doc => {
+                roomsMap.set(doc.id, { ...doc.data(), id: doc.id });
+            });
+            
+            const allRooms = Array.from(roomsMap.values());
+            const filtered = allRooms.filter(r => {
+                return r.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+            });
             setRooms(filtered);
         } catch (error) {
             console.log('Error searching rooms:', error);
@@ -122,14 +137,7 @@ export default function RoomsScreen() {
             <TouchableOpacity
                 style={[styles.roomCard, { backgroundColor: Colour.card.backgroundColor, borderColor: Colour.border }]}
                 onPress={() => {
-                    if (isMember) {
-                        navigation.navigate('RoomDetail', { room: item });
-                    } else {
-                        // If not a member, prompt to join (e.g. via modal or alert)
-                        // For simplicity, we can navigate to RoomDetail which will ask for password if not member
-                        // Wait, it's better to navigate to RoomDetail with a param to show Join modal
-                        navigation.navigate('RoomDetail', { room: item });
-                    }
+                    navigation.navigate('RoomDetail', { room: item });
                 }}
             >
                 <View style={[styles.groupPic, { backgroundColor: stringToColor(item.id) }]}>
@@ -147,12 +155,18 @@ export default function RoomsScreen() {
                             : `${item.members ? item.members.length : 0} members`}
                     </Text>
                 </View>
-                {item.unreadBy && item.unreadBy.includes(curruser.uid) && (
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: stringToColor(item.id, true), marginLeft: 10 }} />
-                )}
-                {!isMember && (
-                    <Ionicons name="lock-closed" size={20} color={Colour.textSecondary} style={{ marginLeft: 10 }} />
-                )}
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {item.unreadBy && item.unreadBy.includes(curruser.uid) && (
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: stringToColor(item.id, true), marginRight: 6 }} />
+                    )}
+                    <Ionicons 
+                        name={item.visibility === 'public' ? 'globe' : 'lock-closed'} 
+                        size={17} 
+                        color={Colour.textSecondary} 
+                        style={{ marginLeft: 6 }} 
+                    />
+                </View>
             </TouchableOpacity>
         );
     };

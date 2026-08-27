@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../utils/Theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import auth from '../services/firebaseAuth';
+import auth, { db } from '../services/firebaseAuth';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { ActivityIndicator } from 'react-native-paper';
 
 export default function CreateRoomScreen() {
@@ -28,13 +29,18 @@ export default function CreateRoomScreen() {
     const [desc, setDesc] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isPublic, setIsPublic] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const BACKEND_URL = "https://connect-backend-hazel.vercel.app/"; // Should ideally use env config
 
     const handleCreateRoom = async () => {
-        if (!name.trim() || !password.trim()) {
-            showAlert("Error", "Name and Password are required");
+        if (!name.trim()) {
+            showAlert("Error", "Room Name is required");
+            return;
+        }
+        if (!isPublic && !password.trim()) {
+            showAlert("Error", "Password is required for Private rooms");
             return;
         }
 
@@ -50,13 +56,22 @@ export default function CreateRoomScreen() {
                 body: JSON.stringify({
                     name: name.trim(),
                     desc: desc.trim(),
-                    password: password.trim(),
-                    groupPic: null // Add image picker logic later if needed
+                    password: isPublic ? "" : password.trim(),
+                    groupPic: null,
+                    visibility: isPublic ? 'public' : 'private'
                 })
             });
 
             const result = await response.json();
             if (result.success) {
+                // If the backend drops `visibility`, enforce it manually by querying for the created room
+                if (isPublic) {
+                    const q = query(collection(db, 'rooms'), where('owner', '==', curruser.uid), where('name', '==', name.trim()));
+                    const snap = await getDocs(q);
+                    for (let d of snap.docs) {
+                        await updateDoc(doc(db, 'rooms', d.id), { visibility: 'public' });
+                    }
+                }
                 showAlert("Success", "Room created successfully!");
                 navigation.goBack();
             } else {
@@ -178,22 +193,47 @@ export default function CreateRoomScreen() {
                         </View>
                     </View>
 
+                    {!isPublic && (
+                        <View style={styles.inputWrap}>
+                            <Text style={styles.inputLabel}>Room Password (Required for Private rooms)</Text>
+                            <View style={styles.inputRow}>
+                                <Ionicons name="lock-closed" size={20} color={Colour.textSecondary} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder="Secret password"
+                                    placeholderTextColor={Colour.textSecondary}
+                                    secureTextEntry={!showPassword}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                />
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                    <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={Colour.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
                     <View style={styles.inputWrap}>
-                        <Text style={styles.inputLabel}>Room Password</Text>
-                        <View style={styles.inputRow}>
-                            <Ionicons name="lock-closed" size={20} color={Colour.textSecondary} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Secret password"
-                                placeholderTextColor={Colour.textSecondary}
-                                secureTextEntry={!showPassword}
-                                value={password}
-                                onChangeText={setPassword}
-                            />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={Colour.textSecondary} />
+                        <Text style={styles.inputLabel}>Room Visibility</Text>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <TouchableOpacity 
+                                style={[styles.inputRow, { flex: 1, justifyContent: 'center', borderColor: !isPublic ? Colour.accent : Colour.border, backgroundColor: !isPublic ? (isDark ? '#2b3a2b' : '#e6f0e7') : Colour.card.backgroundColor }]}
+                                onPress={() => setIsPublic(false)}
+                            >
+                                <Ionicons name="lock-closed" size={18} color={!isPublic ? Colour.accent : Colour.textSecondary} style={{ marginRight: 6 }} />
+                                <Text style={{ fontFamily: 'Anaheim-Bold', color: !isPublic ? Colour.accent : Colour.textSecondary }}>Private</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.inputRow, { flex: 1, justifyContent: 'center', borderColor: isPublic ? Colour.accent : Colour.border, backgroundColor: isPublic ? (isDark ? '#2b3a2b' : '#e6f0e7') : Colour.card.backgroundColor }]}
+                                onPress={() => setIsPublic(true)}
+                            >
+                                <Ionicons name="globe" size={18} color={isPublic ? Colour.accent : Colour.textSecondary} style={{ marginRight: 6 }} />
+                                <Text style={{ fontFamily: 'Anaheim-Bold', color: isPublic ? Colour.accent : Colour.textSecondary }}>Public</Text>
                             </TouchableOpacity>
                         </View>
+                        <Text style={{ fontFamily: 'Anaheim-Regular', color: Colour.textSecondary, fontSize: 12, marginTop: 6, marginLeft: 4 }}>
+                            {isPublic ? "Public rooms can be searched and viewed by anyone." : "Private rooms are hidden from search unless members."}
+                        </Text>
                     </View>
 
                     <TouchableOpacity 
