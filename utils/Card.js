@@ -45,6 +45,8 @@ const Card = ({ item, curruser }) => {
     const [iseditmodalvisible, setIsEditModalVisible] = useState(false);
     const [editCommentText, setEditCommentText] = useState('');
 
+    const [isImageViewVisible, setIsImageViewVisible] = useState(false);
+
     const [fullName, setFullName] = useState(item?.fullName || item?.fullNme);
     const [username, setUserName] = useState(item?.username);
     const [image, setImage] = useState(item?.pic);
@@ -397,9 +399,9 @@ const Card = ({ item, curruser }) => {
     }
 
     return (
-        <View style={[styles.outerContainer, Colour.shadow]}>
+        <View style={[styles.outerContainer, Colour.shadow, popupvisible && { overflow: 'visible', zIndex: 9999, elevation: 9999 }]}>
             {/* HEADER */}
-            <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', width: '100%', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, alignItems: 'center', zIndex: 9999 }}>
                 {/* PROFILE PIC */}
                 <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.userID)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Image
@@ -426,20 +428,20 @@ const Card = ({ item, curruser }) => {
                 </TouchableOpacity>
 
                 {/* ACTION BUTTON */}
-                <View>
+                <View style={{ zIndex: 9999 }}>
                     <TouchableOpacity onPress={() => setPopUpVisible(true)} style={{ padding: 6 }}>
                         <Entypo name="dots-three-vertical" size={16} color={isDark ? '#9A9AA5' : '#75758A'} />
                     </TouchableOpacity>
                     <PopUp
-                        id={125}
                         visible={popupvisible}
-                        onClose={() => setPopUpVisible(false)}
                         isDark={isDark}
-                        postUser={item?.userID}
+                        onClose={() => setPopUpVisible(false)}
                         curruser={curruser}
-                        content={item?.content}
-                        postId={item?.postID}
-                        postImage={item?.image}
+                        postUser={item.userID}
+                        content={item.content}
+                        postImage={item.image}
+                        postId={item.postID}
+                        onEdit={() => navi.navigate('CreatePost', { editMode: true, post: item })}
                     />
                 </View>
             </View>
@@ -461,9 +463,31 @@ const Card = ({ item, curruser }) => {
             </View>
             {
                 item?.image && (
-                    <Image
-                        source={{ uri: optimizeCloudinaryUrl(item.image, 800) }}
-                        style={{ width: '100%', height: screenWidth * (item?.height / item?.width), marginTop: 4 }} />
+                    <>
+                        <TouchableOpacity activeOpacity={0.9} onPress={() => setIsImageViewVisible(true)}>
+                            <Image
+                                source={{ uri: optimizeCloudinaryUrl(item.image, 800) }}
+                                style={{ width: '100%', height: screenWidth * (item?.height / item?.width), marginTop: 4 }} />
+                        </TouchableOpacity>
+                        
+                        <Modal
+                            isVisible={isImageViewVisible}
+                            onBackButtonPress={() => setIsImageViewVisible(false)}
+                            onBackdropPress={() => setIsImageViewVisible(false)}
+                            style={{ margin: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.9)' }}
+                            animationIn="fadeIn"
+                            animationOut="fadeOut"
+                        >
+                            <TouchableOpacity style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setIsImageViewVisible(false)}>
+                                <Ionicons name="close" size={30} color="#fff" />
+                            </TouchableOpacity>
+                            <Image
+                                source={{ uri: item.image }}
+                                style={{ width: screenWidth, height: screenWidth * (item?.height / item?.width) }}
+                                resizeMode="contain"
+                            />
+                        </Modal>
+                    </>
                 )
             }
 

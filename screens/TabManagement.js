@@ -179,7 +179,8 @@ export default function TabManagement() {
 
         try {
             if (Platform.OS === 'android') {
-                changeNavigationBarColor(navBarColor, lightIcons, false);
+                changeNavigationBarColor(navBarColor, lightIcons, false)
+                    .catch(e => console.log('Error setting navigation bar color:', e));
             }
         } catch (e) {
             console.log('Error setting navigation bar color:', e);

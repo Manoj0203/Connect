@@ -33,6 +33,8 @@ import CreateRoomScreen from './screens/CreateRoomScreen';
 import RoomDetailScreen from './screens/RoomDetailScreen';
 import RoomAboutScreen from './screens/RoomAboutScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
+import PostDetailScreen from './screens/PostDetailScreen';
+import FriendsListScreen from './screens/FriendsListScreen';
 
 import { PaperProvider } from 'react-native-paper';
 import { useEffect } from 'react';
@@ -93,6 +95,8 @@ export default function App() {
           <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
           <Stack.Screen name="RoomAbout" component={RoomAboutScreen} />
           <Stack.Screen name="CreatePost" component={CreatePost} />
+          <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+          <Stack.Screen name="FriendsList" component={FriendsListScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </Stack.Navigator>
       </NavigationContainer>

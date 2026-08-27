@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native'
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native'
 import AlertModal from '../utils/AlertModal';
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -43,6 +43,7 @@ const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showpasswd, setShowPasswd] = useState(false)
+    const [googleLoading, setGoogleLoading] = useState(false)
 
     const [forgotemail, setForgotEmail] = useState('');
     const [forgotpassword, setForgotPassword] = useState('');
@@ -63,6 +64,7 @@ const LoginScreen = () => {
     }, [])
 
     async function onGoogleSignIn() {
+        setGoogleLoading(true);
         try {
             await GoogleSignin.hasPlayServices({
                 showPlayServicesUpdateDialog: true,
@@ -131,6 +133,8 @@ const LoginScreen = () => {
 
         } catch (error) {
             console.log('Google Sign-In Error:', error);
+        } finally {
+            setGoogleLoading(false);
         }
     }
 
@@ -412,10 +416,16 @@ const LoginScreen = () => {
                             <View style={{flex: 1, height: 1, backgroundColor: border}} />
                         </View>
 
-                        <TouchableOpacity onPress={onGoogleSignIn} style={[styles.loginBtn, { backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF', marginTop: 0, borderWidth: 1, borderColor: isDark ? '#2E2E33' : '#D8D8D8' }]}>
+                        <TouchableOpacity disabled={googleLoading} onPress={onGoogleSignIn} style={[styles.loginBtn, { backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF', marginTop: 0, borderWidth: 1, borderColor: isDark ? '#2E2E33' : '#D8D8D8' }]}>
                             <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
-                                <Image source={require('../assets/images/google.png')} style={{width: 22, height: 22, marginRight: 12}} />
-                                <Text style={[styles.loginBtnText, { color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-SemiBold' }]}>Sign in with Google</Text>
+                                {googleLoading ? (
+                                    <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} />
+                                ) : (
+                                    <>
+                                        <Image source={require('../assets/images/google.png')} style={{width: 22, height: 22, marginRight: 12}} />
+                                        <Text style={[styles.loginBtnText, { color: isDark ? '#fff' : '#000', fontFamily: 'Anaheim-SemiBold' }]}>Sign in with Google</Text>
+                                    </>
+                                )}
                             </View>
                         </TouchableOpacity>
 

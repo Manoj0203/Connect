@@ -1,5 +1,6 @@
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Image } from 'react-native'
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
+import { useRoute } from '@react-navigation/native';
 import { actions, RichEditor, RichToolbar } from "react-native-pell-rich-editor";
 import { useTheme } from '../utils/Theme';
 import { updateDoc, doc, serverTimestamp, getDoc, setDoc, collection, increment } from 'firebase/firestore';
@@ -23,17 +24,21 @@ const CreatePost = () => {
 	const accent = isDark ? '#06ec06' : '#00B341';
 
 	const richTextRef = useRef();
-	const [text, setText] = useState('');
 
 	const [errorsnackvisible, setErrorSnackVisible] = useState(false);
 	const [successsnackvisible, setSuccessSnackVisible] = useState(false);
 	const [posting, setPosting] = useState(false);
 
+	const route = useRoute();
+	const editMode = route?.params?.editMode || false;
+	const editPostId = route?.params?.post?.postID;
+	
+	const [text, setText] = useState(route?.params?.post?.content || '');
 	const user = auth.currentUser;
 
 	// IMAGE
 	const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-	const [imageUri, setImageUri] = useState(null);
+	const [imageUri, setImageUri] = useState(route?.params?.post?.image ? { uri: route.params.post.image, existing: true, width: route.params.post.width, height: route.params.post.height } : null);
 
 	const handlePost = async () => {
 		if (!text) {
@@ -46,53 +51,56 @@ const CreatePost = () => {
 
 			let data = null;
 
-			if (imageUri) {
-				const formData = new FormData();
-				formData.append('file', {
-					uri: imageUri.path,
-					type: imageUri.mime,
-					name: imageUri.filename || null,
+			if (editMode) {
+				const updateData = { content: text };
+				if (imageUri && !imageUri.existing) {
+					// Upload new image
+					const formData = new FormData();
+					formData.append('file', { uri: imageUri.path, type: imageUri.mime, name: imageUri.filename || null });
+					formData.append('upload_preset', 'upload_posts');
+					const res = await fetch('https://api.cloudinary.com/v1_1/dwlh6mtl2/image/upload', { method: 'POST', body: formData, headers: { 'Content-Type': 'multipart/form-data' } });
+					const data = await res.json();
+					updateData.image = data?.secure_url;
+					updateData.width = data?.width;
+					updateData.height = data?.height;
+				} else if (!imageUri) {
+					updateData.image = null;
+					updateData.width = null;
+					updateData.height = null;
+				}
+				await updateDoc(doc(db, 'posts', editPostId), updateData);
+			} else {
+				let data = null;
+				if (imageUri && !imageUri.existing) {
+					const formData = new FormData();
+					formData.append('file', { uri: imageUri.path, type: imageUri.mime, name: imageUri.filename || null });
+					formData.append('upload_preset', 'upload_posts');
+					const res = await fetch('https://api.cloudinary.com/v1_1/dwlh6mtl2/image/upload', { method: 'POST', body: formData, headers: { 'Content-Type': 'multipart/form-data' } });
+					data = await res.json();
+				}
+				const newPostRef = doc(collection(db, "posts"));
+				await setDoc(newPostRef, {
+					userID: user.uid,
+					postID: newPostRef.id,
+					shareCount: 0,
+					content: text,
+					likes: 0,
+					totcomments: 0,
+					image: data?.secure_url ?? null,
+					width: data?.width ?? null,
+					height: data?.height ?? null,
+					time: serverTimestamp(),
+					likedby: {},
+					comments: {}
 				});
-
-				formData.append('upload_preset', 'upload_posts');
-
-				const res = await fetch(
-					'https://api.cloudinary.com/v1_1/dwlh6mtl2/image/upload',
-					{
-						method: 'POST',
-						body: formData,
-						headers: {
-							'Content-Type': 'multipart/form-data',
-						},
-					}
-				);
-
-				data = await res.json();
+				await updateDoc(doc(db, 'users', user.uid), { post: increment(1) });
 			}
 
-			const newPostRef = doc(collection(db, "posts"));
-			const postId = newPostRef.id;
-
-			await setDoc(newPostRef, {
-				userID: user.uid,
-				postID: postId,
-				shareCount: 0,
-				content: text,
-				likes: 0,
-				totcomments: 0,
-				image: data?.secure_url ?? null,
-				width: data?.width ?? null,
-				height: data?.height ?? null,
-				time: serverTimestamp(),
-				likedby: {},
-				comments: {}
-			});
-
-			await updateDoc(doc(db, 'users', user.uid), { post: increment(1) });
-			setText('');
-
-			richTextRef.current.setContentHTML('')
-			setImageUri(null)
+			if (!editMode) {
+				setText('');
+				richTextRef.current?.setContentHTML('');
+				setImageUri(null);
+			}
 			setSuccessSnackVisible(true);
 		}
 		catch (error) {
@@ -209,13 +217,13 @@ const CreatePost = () => {
 
 			{/* HEADER */}
 			<View style={[styles.header, {marginBottom: 16}]}>
-                <Text style={TEXT.heading}>Create Post</Text>
+                <Text style={TEXT.heading}>{editMode ? 'Edit Post' : 'Create Post'}</Text>
 				{
 					posting ?
 						<ActivityIndicator color={accent} />
 						:
 						<TouchableOpacity onPress={handlePost} style={styles.postBtn}>
-							<Text style={{ color: '#000', fontFamily: 'Anaheim-Bold', fontSize: 15 }}>Post</Text>
+							<Text style={{ color: '#000', fontFamily: 'Anaheim-Bold', fontSize: 15 }}>{editMode ? 'Update' : 'Post'}</Text>
 						</TouchableOpacity>
 				}
             </View>
@@ -257,7 +265,7 @@ const CreatePost = () => {
 									imageUri ?
 										<View style={{ width: '100%', position: 'relative' }}>
 											<Image
-												source={{ uri: imageUri.path }}
+												source={{ uri: imageUri.path || imageUri.uri }}
 												style={{ width: '100%', height: (imageUri.height / imageUri.width) * (screenWidth * 0.9) }}
 												resizeMode='cover' />
 											<TouchableOpacity 

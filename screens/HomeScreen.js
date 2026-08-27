@@ -22,6 +22,7 @@ export default function HomeScreen() {
 	const [refreshing, setRefreshing] = useState(false);
 	const [posts, setPosts] = useState([]);
 	const [hasUnread, setHasUnread] = useState(false);
+	const [blockedUsers, setBlockedUsers] = useState([]);
 
 	useEffect(() => {
 		if (!curruser) {
@@ -49,6 +50,13 @@ export default function HomeScreen() {
 	useEffect(() => {
 		switchsettingup();
 		switchtoauth();
+        const fetchBlockedUsers = async () => {
+            const userDoc = await getDoc(doc(db, 'users', curruser.uid));
+            if (userDoc.exists()) {
+                setBlockedUsers(userDoc.data().blockedUsers || []);
+            }
+        };
+        fetchBlockedUsers();
 		getPosts();
 	}, []);
 
@@ -209,6 +217,7 @@ export default function HomeScreen() {
 	});
 
 	const renderPosts = ({ item }) => {
+		if (blockedUsers.includes(item.userID)) return null;
 		return (
 			<Card
 				item={item}

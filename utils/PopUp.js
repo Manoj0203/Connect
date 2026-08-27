@@ -17,11 +17,10 @@ import {
     StyleSheet,
     Pressable,
 } from 'react-native';
-import { deleteDoc, doc, increment, writeBatch } from 'firebase/firestore';
+import AlertModal from './AlertModal'
+import { addDoc, collection, doc, increment, writeBatch } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
 import Share from 'react-native-share';
-
-import AlertModal from './AlertModal'
 
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -34,9 +33,9 @@ const PopUp = ({
     postUser,
     content,
     postImage,
-    postId
+    postId,
+    onEdit,
 }) => {
-
     const animationFade = useRef(new Animated.Value(0)).current;
     const animationScale = useRef(new Animated.Value(0.85)).current;
 
@@ -45,6 +44,7 @@ const PopUp = ({
 
     const [modalVisible, setModalVisible] = useState(false);
     const [render, setRender] = useState(visible);
+    const [isReported, setIsReported] = useState(false);
 
     useEffect(() => {
         if (visible) {
@@ -97,6 +97,7 @@ const PopUp = ({
             };
 
             await Share.open(options);
+            onClose();
         } catch (error) {
             console.log(error);
         }
@@ -107,10 +108,6 @@ const PopUp = ({
     }
 
     const handleDelete = async () => {
-        // firestore delete here
-        console.log('Deleted');
-        // await deleteDoc(doc(db, 'posts', postId));
-
         batch.delete(doc(db, 'posts', postId));
         batch.update(doc(db, 'users', user.uid), {
             post: increment(-1),
@@ -118,12 +115,25 @@ const PopUp = ({
         batch.commit();
 
         setModalVisible(false);
+        onClose();
     };
 
-    const handleShare = () => {
-
+    const handleReportPost = async () => {
+        try {
+            await addDoc(collection(db, 'Reports'), {
+                type: 'post',
+                postID: postId,
+                reportedUserID: postUser,
+                reportedByUserID: curruser,
+                createdAt: Date.now(),
+                status: 'pending',
+            });
+            setIsReported(true);
+            onClose();
+        } catch (error) {
+            console.log(error);
+        }
     }
-
 
     return (
         <>
@@ -150,21 +160,29 @@ const PopUp = ({
                 />
                 {
                     curruser === postUser && (
-                        <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={() => deletePost()} >
-                            <View style={styles.row}>
-                                <MaterialIcons name="delete" size={22} color="#FF2F32" />
-                                <Text style={[styles.text, { color: '#FF2F32', },]} >Delete </Text>
-                            </View>
-                        </TouchableOpacity>
+                        <>
+                            <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={() => { onClose(); onEdit(); }} >
+                                <View style={styles.row}>
+                                    <MaterialIcons name="edit" size={22} color={isDark ? '#fff' : '#000'} />
+                                    <Text style={[styles.text, { color: isDark ? '#fff' : '#000', },]} >Edit</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={() => deletePost()} >
+                                <View style={styles.row}>
+                                    <MaterialIcons name="delete" size={22} color="#FF2F32" />
+                                    <Text style={[styles.text, { color: '#FF2F32', },]} >Delete</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </>
                     )
                 }
 
                 {
                     curruser !== postUser && (
-                        <TouchableOpacity style={styles.option} activeOpacity={0.7} >
+                        <TouchableOpacity style={styles.option} activeOpacity={0.7} onPress={handleReportPost} disabled={isReported}>
                             <View style={styles.row}>
-                                <MaterialIcons name="report" size={22} color="#FF2F32" />
-                                <Text style={[styles.text, { color: '#FF2F32', },]} >Report</Text>
+                                <MaterialIcons name="report" size={22} color={isReported ? (isDark ? '#5b2727' : '#aa4848') : "#FF2F32"} />
+                                <Text style={[styles.text, { color: isReported ? (isDark ? '#5b2727' : '#aa4848') : '#FF2F32', },]} >{isReported ? 'Reported' : 'Report'}</Text>
                             </View>
                         </TouchableOpacity>
                     )

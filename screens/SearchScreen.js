@@ -13,15 +13,37 @@ const SearchScreen = () => {
 
     const { Colour, isDark, TEXT, SPACING, RADIUS } = useTheme();
 
-    const searchhistory = "SEARCH_HISTORY"
-
-    // console.log(auth.currentUser.uid)
+    const searchhistory = "SEARCH_HISTORY";
 
     const navi = useNavigation();
 
     const [searcheduser, setSearchedUser] = useState('');
     const [searcheduserarray, setSearchedUserArray] = useState([]);
+    const [recentSearches, setRecentSearches] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    React.useEffect(() => {
+        const loadRecentSearches = async () => {
+            try {
+                const stored = await AsyncStorage.getItem(searchhistory);
+                if (stored) {
+                    setRecentSearches(JSON.parse(stored));
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        };
+        loadRecentSearches();
+    }, []);
+
+    const saveRecentSearches = async (newRecentSearches) => {
+        setRecentSearches(newRecentSearches);
+        try {
+            await AsyncStorage.setItem(searchhistory, JSON.stringify(newRecentSearches));
+        } catch (error) {
+            console.log(error);
+        }
+    };
 
     const styles = StyleSheet.create({
         container: {
@@ -32,8 +54,7 @@ const SearchScreen = () => {
             color: isDark ? '#fff' : '#000',
             fontFamily: 'Anaheim-SemiBold',
         },
-        header:
-        {
+        header: {
             width: '100%',
             flexDirection: 'row',
             alignItems: 'center',
@@ -49,17 +70,38 @@ const SearchScreen = () => {
             marginBottom: SPACING.md,
             backgroundColor: Colour.card.backgroundColor,
             borderColor: Colour.border
+        },
+        clearAllText: {
+            color: isDark ? '#cdcdcd' : '#000000',
+            fontFamily: 'Anaheim-SemiBold',
+            fontSize: 14,
         }
     });
 
-    const handleOpenOtherUserID = (userid) => {
-        navi.navigate('OtherProfile', { uid: userid });
+    const handleOpenOtherUserID = (item) => {
+        // Save to recent searches
+        let updatedSearches = recentSearches.filter(user => user.uid !== item.uid);
+        updatedSearches.unshift(item); // Add to top
+        if (updatedSearches.length > 20) {
+            updatedSearches = updatedSearches.slice(0, 20); // Keep max 20
+        }
+        saveRecentSearches(updatedSearches);
+
+        navi.navigate('OtherProfile', { uid: item.uid });
+    }
+
+    const handleRemoveRecent = (uid) => {
+        const updatedSearches = recentSearches.filter(user => user.uid !== uid);
+        saveRecentSearches(updatedSearches);
+    }
+
+    const handleClearAll = () => {
+        saveRecentSearches([]);
     }
 
     const handledynamicsearch = async (search) => {
         setSearchedUser(search);
 
-        setSearchedUserArray([]);
         if (search === '') {
             setSearchedUserArray([]);
             return;
@@ -89,29 +131,47 @@ const SearchScreen = () => {
         }
 
         setSearchedUserArray(results);
-        console.log(searcheduserarray);
     }
 
-    const renderusers = ({ item, index }) => {
+    const renderusers = ({ item }) => {
+        const isRecent = searcheduser === '';
         return (
-            <TouchableOpacity onPress={() => handleOpenOtherUserID(item?.uid)} style={styles.usercard}>
-                <View style={{}}>
+            <TouchableOpacity onPress={() => handleOpenOtherUserID(item)} style={styles.usercard}>
+                <View>
                     <Image
                         source={{ uri: item?.image }}
                         style={{ height: 50, width: 50, borderRadius: 8, }} />
                 </View>
-                <View style={{ marginLeft: 10 }}>
+                <View style={{ marginLeft: 10, flex: 1 }}>
                     <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 15, color: isDark ? '#fff' : '#000' }}>{item?.username}</Text>
                     <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 15, color: isDark ? '#fff' : '#000' }}>{item?.fullname}</Text>
                 </View>
+                {isRecent && (
+                    <TouchableOpacity onPress={() => handleRemoveRecent(item?.uid)} style={{ padding: 8 }}>
+                        <Text style={{ color: isDark ? '#9A9AA5' : '#75758A', fontSize: 20, fontFamily: 'Anaheim-Bold' }}>×</Text>
+                    </TouchableOpacity>
+                )}
             </TouchableOpacity>
         )
+    }
+
+    const renderListHeader = () => {
+        if (searcheduser === '' && recentSearches.length > 0) {
+            return (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 16, color: isDark ? '#F4F4F6' : '#17171B' }}>Recent</Text>
+                    <TouchableOpacity onPress={handleClearAll}>
+                        <Text style={styles.clearAllText}>Clear All</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+        return null;
     }
 
     return (
         <SafeAreaView style={styles.container} >
             <View style={styles.header}>
-                {/* APP NAME */}
                 <Text style={TEXT.heading}>Search</Text>
             </View>
             <Searchbar placeholder='Search Friends'
@@ -122,8 +182,9 @@ const SearchScreen = () => {
                 style={{ backgroundColor: isDark ? '#2A2A2F' : '#EFEFF4', marginHorizontal: 10, marginTop: 10, height: 40, borderRadius: 10, borderWidth: 1, borderColor: isDark ? '#555e56' : '#E7E7ED' }} />
 
             <FlatList
-                data={searcheduserarray}
+                data={searcheduser === '' ? recentSearches : searcheduserarray}
                 renderItem={renderusers}
+                ListHeaderComponent={renderListHeader}
                 style={{ marginHorizontal: 15, marginVertical: 10, marginBottom: '15%' }}
                 ListEmptyComponent={() => (
                     <View style={{ flex: 1, alignItems: 'center' }}>

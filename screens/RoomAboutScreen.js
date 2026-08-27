@@ -33,7 +33,7 @@ export default function RoomAboutScreen() {
     const [room, setRoom] = useState(initialRoom);
     const [usersData, setUsersData] = useState({});
     const [loading, setLoading] = useState(true);
-    
+
     const [newPassword, setNewPassword] = useState('');
     const [isLeaving, setIsLeaving] = useState(false);
     // Collapsible states
@@ -62,7 +62,7 @@ export default function RoomAboutScreen() {
             if (roomDoc.exists()) {
                 const updatedRoom = { ...roomDoc.data(), id: roomDoc.id };
                 setRoom(updatedRoom);
-                
+
                 const newUsersData = {};
                 for (let uid of updatedRoom.members || []) {
                     const userData = await getUserData(uid);
@@ -114,21 +114,23 @@ export default function RoomAboutScreen() {
         setMemberOptionsVisible(false);
         showAlert("Confirm", "Remove this user?", [
             { text: "Cancel", style: "cancel" },
-            { text: "Remove", style: "destructive", onPress: async () => {
-                setLoading(true);
-                try {
-                    const res = await callApi('removeUser', { roomId: room.id, targetUid });
-                    if (res.success) {
-                        loadRoomData();
-                    } else {
-                        showAlert("Error", res.message);
+            {
+                text: "Remove", style: "destructive", onPress: async () => {
+                    setLoading(true);
+                    try {
+                        const res = await callApi('removeUser', { roomId: room.id, targetUid });
+                        if (res.success) {
+                            loadRoomData();
+                        } else {
+                            showAlert("Error", res.message);
+                        }
+                    } catch (e) {
+                        showAlert("Error", "Action failed.");
+                    } finally {
+                        setLoading(false);
                     }
-                } catch (e) {
-                    showAlert("Error", "Action failed.");
-                } finally {
-                    setLoading(false);
                 }
-            }}
+            }
         ]);
     };
 
@@ -181,7 +183,7 @@ export default function RoomAboutScreen() {
         try {
             const res = await callApi('leaveRoom', { roomId: room.id, deleteIfOwner });
             if (res.success) {
-                navigation.navigate('Tabs'); 
+                navigation.navigate('Tabs');
             } else {
                 showAlert("Error", res.message);
             }
@@ -192,7 +194,7 @@ export default function RoomAboutScreen() {
         }
     };
 
-                const stringToColor = (string) => {
+    const stringToColor = (string) => {
         const PREDEFINED_COLORS = [
             '#00796B', // Dark Teal
             '#0288D1', // Dark Light Blue
@@ -218,7 +220,7 @@ export default function RoomAboutScreen() {
         const roleA = room.owner === a ? 0 : (room.admins?.includes(a) ? 1 : 2);
         const roleB = room.owner === b ? 0 : (room.admins?.includes(b) ? 1 : 2);
         if (roleA !== roleB) return roleA - roleB;
-        
+
         const nameA = (usersData[a]?.fullname || usersData[a]?.username || "").toLowerCase();
         const nameB = (usersData[b]?.fullname || usersData[b]?.username || "").toLowerCase();
         return nameA.localeCompare(nameB);
@@ -229,12 +231,12 @@ export default function RoomAboutScreen() {
         let role = "Member";
         if (room.owner === uid) role = "Owner";
         else if (room.admins && room.admins.includes(uid)) role = "Admin";
-        
+
         const isMe = uid === curruser.uid;
 
         return (
-            <TouchableOpacity 
-                key={uid} 
+            <TouchableOpacity
+                key={uid}
                 style={styles.memberRow}
                 onLongPress={() => {
                     setSelectedMember({ uid, role, userObj: u });
@@ -250,7 +252,7 @@ export default function RoomAboutScreen() {
                     )}
                 </View>
                 <View style={styles.memberInfo}>
-                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={[TEXT.usernametxt, { marginLeft: 0, color: Colour.textPrimary, fontSize: 16 }]}>
                             {u.fullname || "Unknown"}
                         </Text>
@@ -339,7 +341,7 @@ export default function RoomAboutScreen() {
             marginBottom: SPACING.md,
         },
         actionBtnText: {
-            color: isDark? '#000' : '#fff',
+            color: isDark ? '#000' : '#fff',
             fontFamily: 'Anaheim-Bold',
             fontSize: 14,
         },
@@ -415,11 +417,11 @@ export default function RoomAboutScreen() {
                 </TouchableOpacity>
                 <Text style={[TEXT.heading, { color: Colour.textPrimary, flex: 1 }]}>About</Text>
             </View>
-            
-            <AlertModal 
-                visible={deleteModalVisible} 
-                isDark={isDark} 
-                onClose={() => setDeleteModalVisible(false)} 
+
+            <AlertModal
+                visible={deleteModalVisible}
+                isDark={isDark}
+                onClose={() => setDeleteModalVisible(false)}
                 onConfirm={() => confirmLeaveRoom(true)}
                 title="Delete Room?"
                 message={`As the owner, leaving this room will remove all other ${room.members?.length - 1} members and permanently delete the room. Are you sure?`}
@@ -434,22 +436,22 @@ export default function RoomAboutScreen() {
                     <View style={{ width: '100%', alignItems: 'center', marginTop: -44 }}>
                         <View style={[styles.groupPic, { borderWidth: 4, borderColor: Colour.card.backgroundColor, marginBottom: 10 }]}>
                             {room.groupPic ? (
-                                <Image source={{ uri: room.groupPic }} style={{width: 72, height: 72, borderRadius: 36}} />
+                                <Image source={{ uri: room.groupPic }} style={{ width: 72, height: 72, borderRadius: 36 }} />
                             ) : (
-                                <Ionicons name="people" size={40} color={'#fff'} />
+                                <Ionicons name="chatbubbles" size={40} color={'#fff'} />
                             )}
                         </View>
                     </View>
 
                     <View style={{ paddingHorizontal: '5%', paddingBottom: '6%', alignItems: 'center', width: '100%' }}>
                         <Text style={[TEXT.heading, { color: Colour.textPrimary, marginBottom: 4 }]}>{room.name}</Text>
-                        
+
                         {room.desc ? (
                             <Text style={[TEXT.detailsSideHeading, { color: Colour.textSecondary, textAlign: 'center', marginBottom: 16 }]}>{room.desc}</Text>
                         ) : <View style={{ height: 16 }} />}
 
                         {room.members && room.members.includes(curruser.uid) && (
-                            <View style={{ backgroundColor: isDark ? '#2E2E33' : '#F3F3F7', paddingHorizontal: 16, paddingVertical: 8, borderRadius:10, flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ backgroundColor: isDark ? '#2E2E33' : '#F3F3F7', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
                                 <Ionicons name={isOwner ? "star" : isAdmin ? "shield-checkmark" : "person"} size={14} color={Colour.textPrimary} style={{ marginRight: 6 }} />
                                 <Text style={{ fontFamily: 'Anaheim-SemiBold', color: Colour.textPrimary, fontSize: 13 }}>
                                     My Role: {isOwner ? 'Owner' : isAdmin ? 'Admin' : 'Member'}
@@ -463,8 +465,8 @@ export default function RoomAboutScreen() {
                 <View style={styles.section}>
                     {(() => {
                         const isMember = room.members && room.members.includes(curruser.uid);
-                        const membersToShow = isMember 
-                            ? sortedMembers 
+                        const membersToShow = isMember
+                            ? sortedMembers
                             : sortedMembers.filter(uid => room.owner === uid || (room.admins && room.admins.includes(uid)));
 
                         return (
@@ -482,7 +484,7 @@ export default function RoomAboutScreen() {
                 {canManage && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Room Settings</Text>
-                        
+
                         <TouchableOpacity style={styles.toggleBtn} onPress={() => setShowChangePassword(!showChangePassword)}>
                             <Text style={styles.toggleBtnText}>Change Password</Text>
                             <Ionicons name={showChangePassword ? "chevron-up" : "chevron-down"} size={20} color={Colour.textPrimary} />
@@ -526,10 +528,10 @@ export default function RoomAboutScreen() {
                 backdropOpacity={0}
                 style={{ justifyContent: 'center', alignItems: 'center' }}
             >
-                <View style={{ 
+                <View style={{
                     backgroundColor: isDark ? '#3d3d3d' : '#ffffff',
-                    borderRadius: 14, 
-                    width: 200, 
+                    borderRadius: 14,
+                    width: 200,
                     paddingVertical: 6,
                     elevation: 10,
                     shadowColor: '#000',
@@ -539,7 +541,7 @@ export default function RoomAboutScreen() {
                 }}>
                     {selectedMember && (
                         <>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                                 activeOpacity={0.7}
                                 onPress={() => {
@@ -552,7 +554,7 @@ export default function RoomAboutScreen() {
                             </TouchableOpacity>
 
                             {canManage && selectedMember.role === "Member" && (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                                     activeOpacity={0.7}
                                     onPress={() => handlePromote(selectedMember.uid)}
@@ -563,7 +565,7 @@ export default function RoomAboutScreen() {
                             )}
 
                             {isOwner && selectedMember.role === "Admin" && (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                                     activeOpacity={0.7}
                                     onPress={() => handleDismiss(selectedMember.uid)}
@@ -574,7 +576,7 @@ export default function RoomAboutScreen() {
                             )}
 
                             {canManage && selectedMember.role !== "Owner" && selectedMember.uid !== curruser.uid && (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                                     activeOpacity={0.7}
                                     onPress={() => handleRemoveUser(selectedMember.uid)}
@@ -587,12 +589,12 @@ export default function RoomAboutScreen() {
                     )}
                 </View>
             </Modal>
-        
-            <AlertModal 
-                config={alertConfig} 
-                onClose={hideAlert} 
-                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
-                isDark={isDark} 
+
+            <AlertModal
+                config={alertConfig}
+                onClose={hideAlert}
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }}
+                isDark={isDark}
             />
         </SafeAreaView>
     );

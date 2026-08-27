@@ -51,6 +51,10 @@ const OtherProfile = () => {
     const [invitableRooms, setInvitableRooms] = useState([]);
     const [loadingRooms, setLoadingRooms] = useState(false);
 
+    // NEW STATES FOR BLOCK / REPORT
+    const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+
     const bg = isDark ? '#121214' : '#F7F7FA';
     const cardBg = isDark ? '#1C1C1F' : '#FFFFFF';
     const border = isDark ? '#2E2E33' : '#E7E7ED';
@@ -101,6 +105,8 @@ const OtherProfile = () => {
                 else {
                     setFriendsRequestSent(false)
                 }
+                const blockedUsers = friendslist.data().blockedUsers || [];
+                setIsBlocked(blockedUsers.includes(uid));
             } catch (error) {
                 console.log('asdjkgas')
             }
@@ -177,6 +183,45 @@ const OtherProfile = () => {
         }
         catch (e) {
             console.log(e);
+        }
+    }
+
+    const handleBlockUser = async () => {
+        setIsSettingsVisible(false);
+        try {
+            if (isBlocked) {
+                setIsBlocked(false);
+                await updateDoc(doc(db, 'users', curruser.uid), {
+                    blockedUsers: arrayRemove(uid)
+                });
+            } else {
+                setIsBlocked(true);
+                // Also remove from friends if blocked
+                if (inFriends) handleRemoveFromFriends();
+                if (friendsrequestsent) handleCancelFriendRequest();
+
+                await setDoc(doc(db, 'users', curruser.uid), {
+                    blockedUsers: [uid]
+                }, { merge: true });
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const handleReportUser = async () => {
+        setIsSettingsVisible(false);
+        try {
+            await addDoc(collection(db, 'Reports'), {
+                type: 'user',
+                reportedUserID: uid,
+                reportedByUserID: curruser.uid,
+                createdAt: Date.now(),
+                status: 'pending',
+            });
+            showAlert("Success", "User has been reported to admins.");
+        } catch (error) {
+            console.log(error);
         }
     }
 
@@ -305,10 +350,13 @@ const OtherProfile = () => {
                 <TouchableOpacity onPress={() => navi.goBack()}>
                     <Feather name="arrow-left" size={22} color={fontcolor} />
                 </TouchableOpacity>
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
                     <Text style={[TEXT.heading, { fontSize: 20, }]}>{value?.username ?? 'Unknown user'} </Text>
                     {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} style={{marginLeft: 2, marginTop: -2}}/>}
                 </View>
+                <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
+                    <Feather name="more-vertical" size={22} color={fontcolor} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView style={{ width: '100%', marginTop: 14 }} showsVerticalScrollIndicator={false}>
@@ -345,10 +393,10 @@ const OtherProfile = () => {
                             <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
                         </View>
                         <View style={styles.statDivider} />
-                        <View style={styles.statBox}>
+                        <TouchableOpacity style={styles.statBox} onPress={() => navi.navigate('FriendsList', { friendsIds: value?.friendslist || [] })}>
                             <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.friends ?? 0}</Text>
                             <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
                             <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.requests ?? 0}</Text>
@@ -411,10 +459,10 @@ const OtherProfile = () => {
                             <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
                         </View>
                         <View style={styles.statDivider} />
-                        <View style={styles.modalStatBox}>
+                        <TouchableOpacity style={styles.modalStatBox} onPress={() => { setIsProfileVisible(false); navi.navigate('FriendsList', { friendsIds: value?.friendslist || [] }); }}>
                             <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.friends}</Text>
                             <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
                         <View style={styles.modalStatBox}>
                             <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.requests}</Text>
@@ -489,6 +537,32 @@ const OtherProfile = () => {
                             )})}
                         </ScrollView>
                     )}
+                </View>
+            </Modal>
+        
+            {/* Settings Modal */}
+            <Modal isVisible={isSettingsVisible}
+                animationIn={'slideInUp'}
+                onBackButtonPress={() => setIsSettingsVisible(false)}
+                onBackdropPress={() => setIsSettingsVisible(false)}
+                hasBackdrop
+                style={{ justifyContent: 'flex-end', margin: 0 }} >
+                <View style={{ backgroundColor: cardBg, height: 'auto', minHeight: 60, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 30 }}>
+                    <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? '#3A3A40' : '#D8D8E0', alignSelf: 'center', marginTop: -4, marginBottom: 12 }} />
+                    <View style={{ marginTop: 12 }}>
+                        <TouchableOpacity style={{ paddingVertical: 12 }} activeOpacity={0.7} onPress={handleBlockUser} >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <MaterialIcons name="block" size={20} color="#F04452" />
+                                <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 15, color: '#F04452' }}>{isBlocked ? 'Unblock User' : 'Block User'}</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={{ paddingVertical: 12 }} activeOpacity={0.7} onPress={handleReportUser} >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <MaterialIcons name="report" size={20} color="#F04452" />
+                                <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 15, color: '#F04452' }}>Report User</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </Modal>
         

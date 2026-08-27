@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View, StatusBar, Image, TouchableOpacity, FlatList, Pressable, ScrollView, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, StatusBar, Image, TouchableOpacity, FlatList, Pressable, ScrollView, RefreshControl, useWindowDimensions } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, updateDoc, writeBatch } from 'firebase/firestore';
+import { arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, increment, orderBy, query, updateDoc, writeBatch, where } from 'firebase/firestore';
 import { getUserData } from '../utils/UserCache';
 import Modal from 'react-native-modal'
 import { BlurView } from '@react-native-community/blur';
@@ -69,10 +69,41 @@ const ProfileScreen = () => {
 		}
 	};
 
+	const [userPosts, setUserPosts] = useState([]);
+	const [friendsModalVisible, setFriendsModalVisible] = useState(false);
+	const { width: screenWidth } = useWindowDimensions();
+
 	const loadData = async (isRefresh = false) => {
 		if (isRefresh) setRefreshing(true);
 		await fetchProfileData();
+		await fetchUserPosts();
 		if (isRefresh) setRefreshing(false);
+	}
+
+	const fetchUserPosts = async () => {
+		try {
+			const q = query(collection(db, 'posts'), where('userID', '==', user.uid));
+			const snapshot = await getDocs(q);
+			const userData = await getUserData(user.uid);
+			
+			let postsData = snapshot.docs.map(docSnap => ({ 
+				...docSnap.data(),
+				id: docSnap.id,
+				postID: docSnap.id,
+				username: userData?.username || 'Unknown',
+				fullName: userData?.fullname || 'Unknown',
+				pic: userData?.image || null,
+				verified: userData?.isVerified || false,
+			}));
+			postsData.sort((a, b) => {
+				const timeA = a.time?.toMillis?.() || 0;
+				const timeB = b.time?.toMillis?.() || 0;
+				return timeB - timeA;
+			});
+			setUserPosts(postsData);
+		} catch (error) {
+			console.log("Error fetching user posts:", error);
+		}
 	}
 
 	useEffect(() => {
@@ -198,10 +229,10 @@ const ProfileScreen = () => {
 							<Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
 						</View>
 						<View style={styles.statDivider} />
-						<View style={styles.statBox}>
+						<TouchableOpacity style={styles.statBox} onPress={() => navi.navigate('FriendsList', { friendsIds: value?.friendslist || [] })}>
 							<Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.friends}</Text>
 							<Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
-						</View>
+						</TouchableOpacity>
 						<View style={styles.statDivider} />
 						<View style={styles.statBox}>
 							<Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 17 }}>{value?.requests}</Text>
@@ -220,9 +251,37 @@ const ProfileScreen = () => {
 					</View>
 				</View>
 			</Pressable>
+
+			{/* POSTS GRID */}
+			{userPosts.length > 0 && (
+				<View style={{ width: '92%', marginTop: 24 }}>
+					<Text style={[styles.sectionLabel, { marginHorizontal: 0, marginTop: 0 }]}>My Posts</Text>
+					<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+						{userPosts.map(post => (
+							<TouchableOpacity 
+								key={post.id} 
+								style={{ width: (screenWidth * 0.92 - 8) / 3, height: (screenWidth * 0.92 - 8) / 3, backgroundColor: isDark ? '#232326' : '#F3F3F7', borderRadius: 8, overflow: 'hidden' }}
+								onPress={() => {
+									navi.navigate('PostDetail', { post: post });
+								}}
+							>
+								{post.image ? (
+									<Image source={{ uri: optimizeCloudinaryUrl(post.image, 300) }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+								) : (
+									<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+										<Text numberOfLines={3} style={{ color: mutedcolor, fontFamily: 'Anaheim-Regular', fontSize: 11, textAlign: 'center' }}>
+											{post.content ? post.content.replace(/<[^>]*>?/gm, '').trim() : 'No text'}
+										</Text>
+									</View>
+								)}
+							</TouchableOpacity>
+						))}
+					</View>
+				</View>
+			)}
 			</ScrollView>
 
-			{/* Profile Card */}
+			{/* Profile Card Modal */}
 			<Modal
 				isVisible={isprofilevisible}
 				onBackButtonPress={() => setIsProfileVisible(false)}
@@ -256,10 +315,10 @@ const ProfileScreen = () => {
 							<Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Posts</Text>
 						</View>
 						<View style={styles.statDivider} />
-						<View style={styles.statBox}>
+						<TouchableOpacity style={styles.statBox} onPress={() => { setIsProfileVisible(false); navi.navigate('FriendsList', { friendsIds: value?.friendslist || [] }); }}>
 							<Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.friends}</Text>
 							<Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 12 }}>Friends</Text>
-						</View>
+						</TouchableOpacity>
 						<View style={styles.statDivider} />
 						<View style={styles.statBox}>
 							<Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }}>{value?.requests}</Text>

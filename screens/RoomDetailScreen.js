@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, RefreshControl, TextInput, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, RefreshControl, TextInput, Alert, KeyboardAvoidingView, Platform, Image, Keyboard } from 'react-native';
 import AlertModal from '../utils/AlertModal';
 import React, { useEffect, useState } from 'react';
 import Modal from 'react-native-modal';
 import { getUserData } from '../utils/UserCache';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../utils/Theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -19,6 +19,7 @@ export default function RoomDetailScreen() {
     const { room } = route.params;
     const curruser = auth.currentUser;
     const { Colour, isDark, TEXT, SPACING, RADIUS } = useTheme();
+    const insets = useSafeAreaInsets();
 
     const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', singleButton: true, onConfirm: null, btnText: 'Okay' });
     const showAlert = (title, message, buttons) => {
@@ -38,12 +39,25 @@ export default function RoomDetailScreen() {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(isMember);
     const [refreshing, setRefreshing] = useState(false);
+    const [blockedUsers, setBlockedUsers] = useState([]);
 
     const [messageText, setMessageText] = useState('');
     const [sending, setSending] = useState(false);
     const [replyingTo, setReplyingTo] = useState(null);
     const [longPressedMessage, setLongPressedMessage] = useState(null);
     const [isMessageOptionsVisible, setIsMessageOptionsVisible] = useState(false);
+    const [reportedMessageIds, setReportedMessageIds] = useState([]);
+    const [editingMessage, setEditingMessage] = useState(null);
+
+    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+        const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+        return () => {
+            keyboardDidShowListener.remove();
+            keyboardDidHideListener.remove();
+        };
+    }, []);
 
         const stringToColor = (string) => {
 
@@ -76,36 +90,42 @@ export default function RoomDetailScreen() {
         if (!messageText.trim() || sending) return;
         setSending(true);
         try {
-            const userData = await getUserData(curruser.uid);
-
-            const newPost = {
-                roomId: room.id,
-                userID: curruser.uid,
-                content: messageText.trim(),
-                time: Date.now(),
-                pic: userData.image || null,
-                username: userData.username,
-                fullName: userData.fullname,
-                verified: userData.isVerified || false,
-                replyToId: replyingTo ? replyingTo.postID : null,
-                replyToUserId: replyingTo ? replyingTo.userID : null,
-                replyToUsername: replyingTo ? replyingTo.username : null,
-                replyToContent: replyingTo ? replyingTo.content : null,
-            };
-            await addDoc(collection(db, 'roomPosts'), newPost);
-            
-            // Update the room document with last message details
-            const roomSnap = await getDoc(doc(db, 'rooms', room.id));
-            if (roomSnap.exists()) {
-                const roomData = roomSnap.data();
-                const members = roomData.members || [];
-                const unreadBy = members.filter(uid => uid !== curruser.uid);
-                await updateDoc(doc(db, 'rooms', room.id), {
-                    lastMessageTime: newPost.time,
-                    lastMessageContent: newPost.content,
-                    lastMessageUsername: newPost.username,
-                    unreadBy: unreadBy
+            if (editingMessage) {
+                await updateDoc(doc(db, 'roomPosts', editingMessage.postID), {
+                    content: messageText.trim(),
+                    isEdited: true
                 });
+                setEditingMessage(null);
+            } else {
+                const userData = await getUserData(curruser.uid);
+                const newPost = {
+                    roomId: room.id,
+                    userID: curruser.uid,
+                    content: messageText.trim(),
+                    time: Date.now(),
+                    pic: userData.image || null,
+                    username: userData.username,
+                    fullName: userData.fullname,
+                    verified: userData.isVerified || false,
+                    replyToId: replyingTo ? replyingTo.postID : null,
+                    replyToUserId: replyingTo ? replyingTo.userId : null,
+                    replyToUsername: replyingTo ? replyingTo.username : null,
+                    replyToContent: replyingTo ? replyingTo.content : null,
+                };
+                await addDoc(collection(db, 'roomPosts'), newPost);
+                
+                const roomSnap = await getDoc(doc(db, 'rooms', room.id));
+                if (roomSnap.exists()) {
+                    const roomData = roomSnap.data();
+                    const members = roomData.members || [];
+                    const unreadBy = members.filter(uid => uid !== curruser.uid);
+                    await updateDoc(doc(db, 'rooms', room.id), {
+                        lastMessageTime: newPost.time,
+                        lastMessageContent: newPost.content,
+                        lastMessageUsername: newPost.username,
+                        unreadBy: unreadBy
+                    });
+                }
             }
 
             setMessageText('');
@@ -119,6 +139,13 @@ export default function RoomDetailScreen() {
 
     useEffect(() => {
         if (isMember) {
+            const fetchBlockedUsers = async () => {
+                const userDoc = await getDoc(doc(db, 'users', curruser.uid));
+                if (userDoc.exists()) {
+                    setBlockedUsers(userDoc.data().blockedUsers || []);
+                }
+            };
+            fetchBlockedUsers();
             loadPosts();
             
             // Clear unread status when opening room
@@ -246,6 +273,8 @@ export default function RoomDetailScreen() {
     };
 
     const renderMessage = ({ item }) => {
+        if (blockedUsers.includes(item.userID)) return null;
+
         const isMe = item.userID === curruser.uid;
 
         const roomColor = stringToColor(room.id);
@@ -322,15 +351,16 @@ export default function RoomDetailScreen() {
                         {item.content}
                     </Text>
 
-                    <Text style={{
-                        fontFamily: 'Anaheim-SemiBold',
-                        fontSize: 10,
-                        color: timeColor,
-                        alignSelf: 'flex-end',
-                        marginTop: 4,
-                    }}>
-                        {formatTime(item.time)}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', marginTop: 4 }}>
+                        {item.isEdited && (
+                            <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 10, color: timeColor, marginRight: 4, fontStyle: 'italic' }}>
+                                (edited)
+                            </Text>
+                        )}
+                        <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 10, color: timeColor }}>
+                            {formatTime(item.time)}
+                        </Text>
+                    </View>
                 </View>
             </TouchableOpacity>
         );
@@ -447,7 +477,7 @@ export default function RoomDetailScreen() {
 
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : (isKeyboardVisible ? 'padding' : undefined)}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
                 {loading ? (
@@ -497,11 +527,37 @@ export default function RoomDetailScreen() {
                     </View>
                 )}
 
+                {/* Edit Preview */}
+                {editingMessage && (
+                    <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: Colour.card.backgroundColor,
+                        padding: 10,
+                        borderTopWidth: 1,
+                        borderTopColor: Colour.border,
+                    }}>
+                        <View style={{ width: 4, height: '100%', backgroundColor: roomColor, borderRadius: 2, marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: 'Anaheim-Bold', fontSize: 13, color: roomColor }}>
+                                Editing Message
+                            </Text>
+                            <Text style={{ fontFamily: 'Anaheim-Regular', fontSize: 13, color: Colour.textSecondary }} numberOfLines={1}>
+                                {editingMessage.content}
+                            </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => { setEditingMessage(null); setMessageText(''); }} style={{ padding: 4 }}>
+                            <Ionicons name="close-circle" size={20} color={Colour.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 {/* Input Area */}
                 <View style={{
                     flexDirection: 'row',
                     alignItems: 'flex-end',
                     padding: 12,
+                    paddingBottom: isKeyboardVisible ? 12 : Math.max(12, insets.bottom),
                     borderTopWidth: 1,
                     borderTopColor: Colour.border,
                     backgroundColor: Colour.bg.backgroundColor,
@@ -546,7 +602,7 @@ export default function RoomDetailScreen() {
                         {sending ? (
                             <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                            <Ionicons name="send" size={18} color="#fff" style={{ marginLeft: 3 }} />
+                            <Ionicons name={editingMessage ? "checkmark" : "send"} size={18} color="#fff" style={{ marginLeft: editingMessage ? 0 : 3 }} />
                         )}
                     </TouchableOpacity>
                 </View>
@@ -574,12 +630,53 @@ export default function RoomDetailScreen() {
                     </TouchableOpacity>
 
                     {longPressedMessage && longPressedMessage.userID === curruser.uid && (
+                        <>
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }}
+                                onPress={() => {
+                                    setEditingMessage(longPressedMessage);
+                                    setMessageText(longPressedMessage.content);
+                                    setIsMessageOptionsVisible(false);
+                                    setReplyingTo(null);
+                                }}
+                            >
+                                <Ionicons name="pencil-outline" size={24} color={Colour.textPrimary} style={{ marginRight: 16 }} />
+                                <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 16, color: Colour.textPrimary }}>Edit Message</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }}
+                                onPress={handleDeleteMessage}
+                            >
+                                <Ionicons name="trash-outline" size={24} color="#F04452" style={{ marginRight: 16 }} />
+                                <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 16, color: "#F04452" }}>Delete for everyone</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+
+                    {longPressedMessage && longPressedMessage.userID !== curruser.uid && (
                         <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }}
-                            onPress={handleDeleteMessage}
+                            disabled={reportedMessageIds.includes(longPressedMessage.postID)}
+                            onPress={async () => {
+                                try {
+                                    await addDoc(collection(db, 'Reports'), {
+                                        type: 'roomMessage',
+                                        postID: longPressedMessage.postID,
+                                        reportedUserID: longPressedMessage.userID,
+                                        reportedByUserID: curruser.uid,
+                                        createdAt: Date.now(),
+                                        status: 'pending',
+                                    });
+                                    setReportedMessageIds(prev => [...prev, longPressedMessage.postID]);
+                                    setIsMessageOptionsVisible(false);
+                                } catch(e) { console.log(e) }
+                            }}
                         >
-                            <Ionicons name="trash-outline" size={24} color="#F04452" style={{ marginRight: 16 }} />
-                            <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 16, color: "#F04452" }}>Delete for everyone</Text>
+                            <Ionicons name="warning-outline" size={24} color={reportedMessageIds.includes(longPressedMessage?.postID) ? (isDark ? '#5b2727' : '#aa4848') : "#F04452"} style={{ marginRight: 16 }} />
+                            <Text style={{ fontFamily: 'Anaheim-SemiBold', fontSize: 16, color: reportedMessageIds.includes(longPressedMessage?.postID) ? (isDark ? '#5b2727' : '#aa4848') : "#F04452" }}>
+                                {reportedMessageIds.includes(longPressedMessage?.postID) ? 'Reported' : 'Report Message'}
+                            </Text>
                         </TouchableOpacity>
                     )}
                 </View>
