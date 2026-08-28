@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { addDoc, collection, deleteDoc, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc, getDocs, writeBatch, arrayRemove, query, where } from 'firebase/firestore';
 import Feather from 'react-native-vector-icons/Feather';
-import { getUserData } from '../utils/UserCache';
+import { getUserData, clearUserCache } from '../utils/UserCache';
 import { BlurView } from '@react-native-community/blur';
 import Modal from 'react-native-modal';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -46,7 +46,7 @@ const OtherProfile = () => {
     const [inFriends, setInFriends] = useState(false);
 
     const [isprofilevisible, setIsProfileVisible] = useState(false);
-    
+
     const [isInviteModalVisible, setIsInviteModalVisible] = useState(false);
     const [invitableRooms, setInvitableRooms] = useState([]);
     const [loadingRooms, setLoadingRooms] = useState(false);
@@ -127,19 +127,40 @@ const OtherProfile = () => {
                 friendslist: arrayRemove(curruser.uid),
                 friends: increment(-1),
             })
-            batch.commit();
+            await batch.commit();
+            await clearUserCache(curruser.uid);
+            await clearUserCache(uid);
         } catch (error) {
             console.log(error)
         }
     }
 
     const handleFriendRequest = async () => {
+        const amIBlocked = value?.blockedUsers?.includes(curruser.uid);
+        
+        if (isBlocked) {
+            showAlert(
+                "User Blocked", 
+                "You have blocked this user. Would you like to unblock them to send a friend request?", 
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Unblock", onPress: handleBlockUser }
+                ]
+            );
+            return;
+        }
+
+        if (amIBlocked) {
+            showAlert("Action not allowed", "You cannot send a friend request to this user.");
+            return;
+        }
+
         try {
             setFriendsRequestSent(true);
 
             const currUserData = await getUserData(curruser.uid);
             const otherUserData = await getUserData(uid);
-            
+
             const fromname = currUserData?.fullname;
             const fromusername = currUserData?.username;
             const toname = otherUserData?.fullname;
@@ -166,6 +187,7 @@ const OtherProfile = () => {
                 to: uid,
                 fromusername,
             })
+            await clearUserCache(curruser.uid);
         } catch (error) {
             console.log(error)
         }
@@ -180,6 +202,7 @@ const OtherProfile = () => {
             await updateDoc(doc(db, 'users', curruser.uid), {
                 requests: increment(-1),
             })
+            await clearUserCache(curruser.uid);
         }
         catch (e) {
             console.log(e);
@@ -194,6 +217,8 @@ const OtherProfile = () => {
                 await updateDoc(doc(db, 'users', curruser.uid), {
                     blockedUsers: arrayRemove(uid)
                 });
+                await clearUserCache(curruser.uid);
+                await clearUserCache(uid);
             } else {
                 setIsBlocked(true);
                 // Also remove from friends if blocked
@@ -203,6 +228,8 @@ const OtherProfile = () => {
                 await setDoc(doc(db, 'users', curruser.uid), {
                     blockedUsers: [uid]
                 }, { merge: true });
+                await clearUserCache(curruser.uid);
+                await clearUserCache(uid);
             }
         } catch (error) {
             console.log(error);
@@ -225,7 +252,7 @@ const OtherProfile = () => {
         }
     }
 
-                const stringToColor = (string) => {
+    const stringToColor = (string) => {
         const PREDEFINED_COLORS = [
             '#00796B', // Dark Teal
             '#0288D1', // Dark Light Blue
@@ -248,6 +275,25 @@ const OtherProfile = () => {
     };
 
     const handleOpenInvite = async () => {
+        const amIBlocked = value?.blockedUsers?.includes(curruser.uid);
+        
+        if (isBlocked) {
+            showAlert(
+                "User Blocked", 
+                "You have blocked this user. Would you like to unblock them to invite them?", 
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Unblock", onPress: handleBlockUser }
+                ]
+            );
+            return;
+        }
+
+        if (amIBlocked) {
+            showAlert("Action not allowed", "You cannot invite this user.");
+            return;
+        }
+
         setIsInviteModalVisible(true);
         setLoadingRooms(true);
         try {
@@ -350,9 +396,9 @@ const OtherProfile = () => {
                 <TouchableOpacity onPress={() => navi.goBack()}>
                     <Feather name="arrow-left" size={22} color={fontcolor} />
                 </TouchableOpacity>
-                <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Text style={[TEXT.heading, { fontSize: 20, }]}>{value?.username ?? 'Unknown user'} </Text>
-                    {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} style={{marginLeft: 2, marginTop: -2}}/>}
+                    {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} style={{ marginLeft: 2, marginTop: -2 }} />}
                 </View>
                 <TouchableOpacity onPress={() => setIsSettingsVisible(true)}>
                     <Feather name="more-vertical" size={22} color={fontcolor} />
@@ -444,7 +490,7 @@ const OtherProfile = () => {
                             source={{ uri: imageUri }}
                             style={{ height: 88, width: 88, borderRadius: 24, borderWidth: 3, borderColor: cardBg, marginTop: -60 }}
                         />
-                        <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 12}}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                             <Text style={[TEXT.usernametxt, { fontSize: 19, textAlign: 'center', marginLeft: 0 }]}>{value?.fullname} </Text>
                             {value?.isVerified && <MaterialIcons name="verified" size={16} color={Colour.accent} />}
                         </View>
@@ -497,7 +543,7 @@ const OtherProfile = () => {
                             <Feather name="x" size={20} color={fontcolor} />
                         </TouchableOpacity>
                     </View>
-                    
+
                     {loadingRooms ? (
                         <Text style={{ color: mutedcolor, textAlign: 'center', marginTop: 40, fontFamily: 'Anaheim-SemiBold' }}>Loading your rooms...</Text>
                     ) : invitableRooms.length === 0 ? (
@@ -507,39 +553,40 @@ const OtherProfile = () => {
                             {invitableRooms.map(room => {
                                 const mCount = room.members ? room.members.length : 0;
                                 return (
-                                <View 
-                                    key={room.id} 
-                                    style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-                                >
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: stringToColor(room.id), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                                            {room.groupPic ? (
-                                                <Image source={{ uri: room.groupPic }} style={{ width: 44, height: 44, borderRadius: 22 }} />
-                                            ) : (
-                                                <Ionicons name="chatbubbles" size={20} color={'#fff'} />
-                                            )}
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }} numberOfLines={1}>{room.name}</Text>
-                                            <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 13 }}>{mCount} member{mCount !== 1 ? 's' : ''}</Text>
-                                        </View>
-                                    </View>
-                                    <TouchableOpacity 
-                                        style={{ backgroundColor: mCount >= 20 ? (isDark ? '#2E2E33' : '#E7E7ED') : accentSoft, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, marginLeft: 10 }}
-                                        onPress={() => handleInviteSubmit(room)}
-                                        disabled={mCount >= 20}
+                                    <View
+                                        key={room.id}
+                                        style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                                     >
-                                        <Text style={{ color: mCount >= 20 ? mutedcolor : accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>
-                                            {mCount >= 20 ? 'Full' : 'Invite'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )})}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: stringToColor(room.id), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                                {room.groupPic ? (
+                                                    <Image source={{ uri: room.groupPic }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                                                ) : (
+                                                    <Ionicons name="chatbubbles" size={20} color={'#fff'} />
+                                                )}
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: fontcolor, fontFamily: 'Anaheim-Bold', fontSize: 16 }} numberOfLines={1}>{room.name}</Text>
+                                                <Text style={{ color: mutedcolor, fontFamily: 'Anaheim-SemiBold', fontSize: 13 }}>{mCount} member{mCount !== 1 ? 's' : ''}</Text>
+                                            </View>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={{ backgroundColor: mCount >= 20 ? (isDark ? '#2E2E33' : '#E7E7ED') : accentSoft, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, marginLeft: 10 }}
+                                            onPress={() => handleInviteSubmit(room)}
+                                            disabled={mCount >= 20}
+                                        >
+                                            <Text style={{ color: mCount >= 20 ? mutedcolor : accent, fontFamily: 'Anaheim-Bold', fontSize: 13 }}>
+                                                {mCount >= 20 ? 'Full' : 'Invite'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )
+                            })}
                         </ScrollView>
                     )}
                 </View>
             </Modal>
-        
+
             {/* Settings Modal */}
             <Modal isVisible={isSettingsVisible}
                 animationIn={'slideInUp'}
@@ -565,12 +612,12 @@ const OtherProfile = () => {
                     </View>
                 </View>
             </Modal>
-        
-            <AlertModal 
-                config={alertConfig} 
-                onClose={hideAlert} 
-                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }} 
-                isDark={isDark} 
+
+            <AlertModal
+                config={alertConfig}
+                onClose={hideAlert}
+                onConfirm={() => { if (alertConfig.onConfirm) alertConfig.onConfirm(); hideAlert(); }}
+                isDark={isDark}
             />
         </SafeAreaView>
     )

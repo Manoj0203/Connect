@@ -5,6 +5,7 @@ import { actions, RichEditor, RichToolbar } from "react-native-pell-rich-editor"
 import { useTheme } from '../utils/Theme';
 import { updateDoc, doc, serverTimestamp, getDoc, setDoc, collection, increment } from 'firebase/firestore';
 import auth, { db } from '../services/firebaseAuth';
+import { clearUserCache } from '../utils/UserCache';
 import ImagePicker from 'react-native-image-crop-picker';
 import { ActivityIndicator, Snackbar } from 'react-native-paper'
 
@@ -94,6 +95,7 @@ const CreatePost = () => {
 					comments: {}
 				});
 				await updateDoc(doc(db, 'users', user.uid), { post: increment(1) });
+				await clearUserCache(user.uid);
 			}
 
 			if (!editMode) {

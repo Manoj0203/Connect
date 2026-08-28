@@ -22,6 +22,7 @@ import { addDoc, collection, doc, increment, writeBatch, query, getDocs, where }
 import auth, { db } from '../services/firebaseAuth';
 import Share from 'react-native-share';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearUserCache } from '../utils/UserCache';
 
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -140,7 +141,8 @@ const PopUp = ({
         batch.update(doc(db, 'users', user.uid), {
             post: increment(-1),
         })
-        batch.commit();
+        await batch.commit();
+        await clearUserCache(user.uid);
 
         setModalVisible(false);
         onClose();

@@ -7,6 +7,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 import auth, { db } from '../services/firebaseAuth';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, increment, deleteDoc, writeBatch, arrayUnion, arrayRemove, setDoc } from 'firebase/firestore';
+import { clearUserCache } from '../utils/UserCache';
 
 export default function NotificationsScreen() {
     const navigation = useNavigation();
@@ -85,6 +86,8 @@ export default function NotificationsScreen() {
             }
 
             await batch.commit();
+            await clearUserCache(curruser.uid);
+            await clearUserCache(fromUid);
 
             // Remove from local state
             setFriendRequests(prev => prev.filter(r => r.id !== request.id));
@@ -106,6 +109,7 @@ export default function NotificationsScreen() {
             });
 
             await batch.commit();
+            await clearUserCache(fromUid);
             setFriendRequests(prev => prev.filter(r => r.id !== request.id));
         } catch (error) {
             console.log('Error rejecting friend:', error);
